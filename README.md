@@ -778,75 +778,43 @@ clearUser()
 
 ---
 
-## Deep links — notification tap navigation
+## Notification taps — opening the right conversation
 
-When a user taps a push notification, the SDK opens the correct conversation automatically.
-This works via the `kerabie://conversation/:id` URI scheme.
-
-### app.json — required config
-
-```json
-{
-  "expo": {
-    "scheme": "kerabie",
-    "android": {
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [{ "scheme": "kerabie" }],
-          "category": ["BROWSABLE", "DEFAULT"]
-        }
-      ]
-    },
-    "ios": {
-      "bundleIdentifier": "com.yourcompany.yourapp",
-      "associatedDomains": ["applinks:kerabie.com"]
-    }
-  }
-}
-```
-
-### How it works
-
-The SDK registers a `Linking` listener automatically inside `KerAbieProvider`.
-When a notification is tapped:
-1. OS opens your app with the URL `kerabie://conversation/123`
-2. `KerAbieDeepLinkService` intercepts the URL
-3. The chat widget opens and scrolls to conversation 123
-
-No extra setup needed — just add the `app.json` config above.
-
-### Custom scheme
-
-If your app already uses a different scheme:
+When a user taps a Kerabie push notification, the SDK opens the chat on that conversation. **No app.json deep link or URL scheme setup is needed**: the notification's data already carries the `conversationId` (and the `orgId`), and `KerAbieProvider` listens for the tap, including the tap that launches the app from a closed state.
 
 ```tsx
-// In the deep link handler init (you don't call this directly — 
-// the provider handles it, but you can override via KerAbieDeepLinkService)
-KerAbieDeepLinkService.init({
-  scheme: 'myapp',  // uses myapp://conversation/123 instead
-  onConversation: (id) => { /* custom handler */ },
-})
+// Once, at your app entry: ask for permission, get the Expo push token and register it with Kerabie
+await NotificationService.setup({ projectId: 'your-expo-project-id' });
 ```
 
-### Send the deep link in Expo push notifications (backend)
+That is all. Notifications tapped while the app is in the foreground, in the background or closed all land on the right conversation.
 
-When the Kerabie backend sends an Expo push notification, it includes:
+### Links with your own scheme (optional)
+
+If you also want a link such as `myapp://conversation/123` to open a conversation (from an email or another screen), use **your own app's scheme**, never `kerabie`. Register it the way your app already registers its scheme (in Expo, `"scheme": "myapp"` in `app.json`), then build links with:
+
+```ts
+KerAbieDeepLinkService.conversationUrl(123, 'myapp') // "myapp://conversation/123"
+```
+
+The provider accepts a conversation link with any scheme by default. To accept only yours, initialise the service with it:
+
+```ts
+KerAbieDeepLinkService.init({ scheme: 'myapp', onConversation: (id) => { /* open the chat */ } })
+```
+
+### What the push contains
+
+Kerabie sends Expo pushes like this. Read `conversationId` and `orgId` from `data`; ignore the `url` field, it is only used by Kerabie's own app.
 
 ```json
 {
   "to": "ExponentPushToken[...]",
   "title": "New message",
   "body": "You have a new message",
-  "data": {
-    "url": "kerabie://conversation/123",
-    "conversationId": 123
-  }
+  "data": { "conversationId": 123, "orgId": 45 }
 }
 ```
-
-The `expo-notifications` handler in your app should call `Linking.openURL(notification.request.content.data.url)` on tap.
 
 ---
 

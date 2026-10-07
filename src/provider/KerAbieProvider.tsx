@@ -164,22 +164,35 @@ export function KerAbieProvider({
     onOpenChat?.();
   }, [openMode, navigation, navigationRef, onNavigate, onOpenChat]);
 
-  // Deep link handler — open chat to the right conversation on notification tap
+  // Open the chat on the right conversation: from a tapped push notification (its data carries the
+  // conversationId, so no URL scheme is involved) or from a <your-scheme>://conversation/:id link.
   useEffect(() => {
-    KerAbieDeepLinkService.init({
-      onConversation: (conversationId) => {
-        // Always surface the conversation in state so ChatScreen can scroll to it
-        setCurrentConversation((prev) => prev?.id === conversationId ? prev : {
-          id: conversationId,
-          status: 'open',
-          unreadCount: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        navigateTo({ type: 'conversation', conversationId });
-      },
-    });
-    return () => KerAbieDeepLinkService.destroy();
+    const openConversation = (conversationId: number) => {
+      // Always surface the conversation in state so ChatScreen can scroll to it
+      setCurrentConversation((prev) => prev?.id === conversationId ? prev : {
+        id: conversationId,
+        status: 'open',
+        unreadCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      navigateTo({ type: 'conversation', conversationId });
+    };
+
+    KerAbieDeepLinkService.init({ onConversation: openConversation });
+
+    let live = true;
+    let stopListening: (() => void) | undefined;
+    NotificationService.onNotificationTap((data) => {
+      const id = Number(data.conversationId);
+      if (Number.isInteger(id) && id > 0) openConversation(id);
+    }).then((stop) => { if (live) stopListening = stop; else stop(); });
+
+    return () => {
+      live = false;
+      stopListening?.();
+      KerAbieDeepLinkService.destroy();
+    };
   }, [navigateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Init session

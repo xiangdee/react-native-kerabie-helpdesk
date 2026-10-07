@@ -114,6 +114,24 @@ export const NotificationService = {
   },
 
   /**
+   * Call `handler` with a notification's `data` when the user taps it, including the tap that launched the app.
+   * Kerabie pushes carry `conversationId` (and `orgId`), so opening the right conversation needs no URL scheme.
+   * Returns a function that stops listening.
+   */
+  async onNotificationTap(handler: (data: Record<string, unknown>) => void): Promise<() => void> {
+    const Notifications = await import('expo-notifications').catch(() => null);
+    if (!Notifications) return () => {};
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      handler((response.notification.request.content.data ?? {}) as Record<string, unknown>);
+    });
+    // The tap that started the app has already happened by the time we listen.
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => { if (response) handler((response.notification.request.content.data ?? {}) as Record<string, unknown>); })
+      .catch(() => {});
+    return () => sub.remove();
+  },
+
+  /**
    * Configure how notifications appear when the app is in the foreground.
    * Call once in your app root.
    */

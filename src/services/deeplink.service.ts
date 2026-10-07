@@ -2,7 +2,7 @@
  * Deep link handler for Kerabie push notification taps.
  *
  * When a user taps a push notification on Android/iOS, this service:
- * 1. Intercepts the URL (scheme: `kerabie://` or your custom scheme)
+ * 1. Intercepts the URL (any scheme by default, or only your own scheme when you pass one)
  * 2. Extracts the conversation ID
  * 3. Opens the chat to that conversation
  *
@@ -11,11 +11,11 @@
  */
 
 export interface DeepLinkHandlers {
-  /** Called when a conversation deep link is tapped: kerabie://conversation/123 */
+  /** Called when a conversation link is opened: <your-scheme>://conversation/123 */
   onConversation?: (conversationId: number) => void;
-  /** Called for any kerabie:// link that isn't recognised */
+  /** Called for any link that isn't recognised */
   onUnknown?: (url: string) => void;
-  /** Your app scheme (default: "kerabie") */
+  /** Your own app scheme, e.g. "myapp". Leave it out to accept a conversation link with any scheme. */
   scheme?: string;
 }
 
@@ -67,9 +67,9 @@ export const KerAbieDeepLinkService = {
   _handleUrl(url: string): void {
     if (!url || !this._handlers) return;
 
-    const scheme = this._handlers.scheme ?? 'kerabie';
+    const scheme = this._handlers.scheme ? this._handlers.scheme.replace(/[^a-zA-Z0-9+.-]/g, '') : '[a-zA-Z][a-zA-Z0-9+.-]*';
 
-    // kerabie://conversation/123
+    // <scheme>://conversation/123
     const convMatch = url.match(new RegExp(`^${scheme}:\\/\\/conversation\\/([0-9]+)`));
     if (convMatch) {
       const conversationId = parseInt(convMatch[1], 10);
@@ -87,10 +87,10 @@ export const KerAbieDeepLinkService = {
    * Use this as the `data.url` in Expo push notifications.
    *
    * @example
-   * KerAbieDeepLinkService.conversationUrl(123)
-   * // → "kerabie://conversation/123"
+   * KerAbieDeepLinkService.conversationUrl(123, 'myapp')
+   * // → "myapp://conversation/123"
    */
-  conversationUrl(conversationId: number, scheme = 'kerabie'): string {
+  conversationUrl(conversationId: number, scheme: string): string {
     return `${scheme}://conversation/${conversationId}`;
   },
 };
