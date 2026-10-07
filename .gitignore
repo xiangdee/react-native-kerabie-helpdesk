@@ -1,0 +1,9 @@
+node_modules
+dist
+*.tgz
+.env
+.env.*
+
+# Internal project notes
+CLAUDE.md
+Design.md
