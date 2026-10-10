@@ -27,9 +27,12 @@ class KerSocketService {
     this.socket = io(`${SOCKET_URL}/chat`, {
       transports: ['websocket'],
       auth: { role: 'visitor' },
+      // Exponential backoff with jitter, retrying forever: 1s, 2s, 4s ... capped at 30s, each
+      // randomised by +-50%, so devices don't all hit the server at once when it comes back.
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.5,
     });
 
     this.socket.on('connect', () => {

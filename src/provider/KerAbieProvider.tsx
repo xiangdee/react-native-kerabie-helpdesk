@@ -122,6 +122,10 @@ export function KerAbieProvider({
   // explicit developer override) still wins when both set `name`.
   const mergedChatSettings: KerChatSettings = { ...remoteChatSettings, ...chatSettings };
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // For the reconnect catch-up below: whether a handshake has completed before, and the current messages.
+  const hasConnectedOnce = useRef(false);
+  const messagesRef = useRef<KerMessage[]>([]);
+  messagesRef.current = messages;
   const pendingTempIds = useRef<Map<string, string>>(new Map());
   const pendingFailTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   // Set while the first message of a new conversation is in flight: resolves
@@ -276,7 +280,13 @@ export function KerAbieProvider({
   useEffect(() => {
     const unsubs = [
       socketService.on('connect', () => setIsConnected(true)),
-      socketService.on('disconnect', () => setIsConnected(false)),
+      socketService.on('disconnect', () => {
+        // A reply in flight is lost with the connection; don't leave the typing/thinking indicator up.
+        if (typingTimer.current) { clearTimeout(typingTimer.current); typingTimer.current = null; }
+        setIsTyping(false);
+        setIsAiTyping(false);
+        setIsConnected(false);
+      }),
       socketService.on('visitor_ready', (data: { conversationId: number | null; agentsOnline?: boolean }) => {
         // Only a boolean here (agents:online later carries the real count) —
         // already reflects the dashboard's manual online/offline override.
@@ -285,6 +295,20 @@ export function KerAbieProvider({
         }
         const convId = data.conversationId;
         if (convId) setCurrentConversation((prev) => prev ?? newConversationState(convId));
+
+        // Socket.io doesn't replay anything sent while we were disconnected, so after a reconnect pull
+        // the history again and merge in the replies we missed (the visitor's own messages are skipped:
+        // a send still awaiting its ack has a temp id here and would be added a second time).
+        if (!hasConnectedOnce.current) { hasConnectedOnce.current = true; return; }
+        ApiService.get<{ messages: any[] }>('/public/widget/messages')
+          .then((history) => {
+            const known = new Set(messagesRef.current.map((m) => m.id));
+            const fresh = (history.messages ?? []).map(mapIncomingMessage).filter((m) => m.senderType !== 'visitor' && !known.has(m.id));
+            if (!fresh.length) return;
+            setMessages((prev) => [...prev, ...fresh.filter((m) => !prev.some((p) => p.id === m.id))]);
+            if (!isOpen) setUnreadCount((n) => n + fresh.length);
+          })
+          .catch(() => {});
       }),
       socketService.on<KerMessage & { streamId?: string }>('message', (raw) => {
         const msg = mapIncomingMessage(raw);
