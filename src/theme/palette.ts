@@ -17,7 +17,7 @@ export interface KerPalette {
   primary: string;
   /** Text/icon color that stays readable ON the brand color, picked by its luminance. */
   onPrimary: string;
-  /** Brand color used AS text/icon color on neutral surfaces — lightened in dark mode. */
+  /** Brand color used AS text/icon color on neutral surfaces — darkened/lightened until it reads (WCAG AA). */
   accent: string;
 }
 
@@ -76,14 +76,34 @@ export function contrastText(background: string): string {
   return rgb && luminance(rgb) > 0.5 ? '#0f172a' : '#ffffff';
 }
 
-function mixWithWhite([r, g, b]: Rgb, amount: number): string {
-  return `rgb(${[r, g, b].map((c) => Math.round(c + (255 - c) * amount)).join(', ')})`;
+const contrastRatio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+/**
+ * The brand color made usable as TEXT/ICON color on a surface: same hue, darkened on a light surface (lightened on a
+ * dark one) just until it reaches WCAG AA (4.5:1), and untouched when it already does. A bright brand color such as lime
+ * is otherwise unreadable as text on white. Mirrors readableAccent() in kerabie-chat-widget/src/utils/readableAccent.ts.
+ * Not a parseable color -> plain readable text for that surface.
+ */
+export function readableAccent(brand: string, surface: string, min = 4.5): string {
+  const surfaceRgb = parseColor(surface) ?? ([255, 255, 255] as Rgb);
+  const surfaceLum = luminance(surfaceRgb);
+  const light = surfaceLum > 0.5;
+  const from = parseColor(brand);
+  if (!from) return light ? '#0f172a' : '#e5e7eb';
+  if (contrastRatio(luminance(from), surfaceLum) >= min) return brand;
+
+  const target: Rgb = light ? [0, 0, 0] : [255, 255, 255];
+  const mixed = (t: number): Rgb => [0, 1, 2].map((i) => Math.round(from[i]! + (target[i]! - from[i]!) * t)) as Rgb;
+  for (let t = 0.05; t < 1; t += 0.05) {
+    const candidate = mixed(t);
+    if (contrastRatio(luminance(candidate), surfaceLum) >= min) return `rgb(${candidate.join(', ')})`;
+  }
+  return light ? '#000000' : '#ffffff';
 }
 
 export function resolvePalette(theme: KerTheme, scheme: 'light' | 'dark'): KerPalette {
   const n = NEUTRALS[scheme];
   const primary = theme.primaryColor ?? DEFAULT_PRIMARY;
-  const rgb = parseColor(primary) ?? parseColor(DEFAULT_PRIMARY)!;
   return {
     scheme,
     ...n,
@@ -93,7 +113,8 @@ export function resolvePalette(theme: KerTheme, scheme: 'light' | 'dark'): KerPa
     agentBubble: theme.agentBubbleColor ?? n.surface,
     primary,
     onPrimary: contrastText(primary),
-    accent: scheme === 'dark' ? mixWithWhite(rgb, 0.45) : primary,
+    // Brand color as text/icon: readable on this scheme's strongest panel surface (see readableAccent).
+    accent: readableAccent(primary, n.surfaceStrong),
   };
 }
 
