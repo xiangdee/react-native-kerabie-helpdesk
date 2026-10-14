@@ -12,7 +12,9 @@ import type { KerTicket, KerTicketMessage, KerTicketPriority } from '../types';
  */
 export function useKerAbieTickets() {
   const [tickets, setTickets] = useState<KerTicket[]>([]);
-  const [loading, setLoading] = useState(false);
+  // True until the first answer, so "No tickets yet." never flashes before the skeleton. (Tickets are the visitor's
+  // own, so unlike the public articles they are not written to device storage.)
+  const [loading, setLoading] = useState(true);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);

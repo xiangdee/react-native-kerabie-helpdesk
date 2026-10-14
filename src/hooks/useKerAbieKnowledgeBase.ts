@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiService } from '../services/api.service';
+import { StorageService } from '../services/storage.service';
 import type { KerKbArticle } from '../types';
 
 /**
@@ -9,20 +10,32 @@ import type { KerKbArticle } from '../types';
  */
 export function useKerAbieKnowledgeBase() {
   const [articles, setArticles] = useState<KerKbArticle[]>([]);
-  const [loading, setLoading] = useState(false);
+  // True until the first answer (or remembered content) is in, so the screen never flashes "No articles yet." before
+  // the skeleton — the old initial `false` rendered the empty state for a frame on every open.
+  const [loading, setLoading] = useState(true);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const articlesRef = useRef<KerKbArticle[]>([]);
+  articlesRef.current = articles;
+  // Set once the server has answered, so remembered content that is still being read never overwrites it.
+  const gotFresh = useRef(false);
+  const cacheKey = `cache:kb:${ApiService.widgetKey()}`;
 
   const fetchArticles = useCallback(async (search?: string) => {
-    setLoading(true);
+    // A search replaces the list so it shows the skeleton; refreshing the default list behind remembered articles does not.
+    if (search || articlesRef.current.length === 0) setLoading(true);
     try {
       const res = await ApiService.get<{ data: KerKbArticle[] }>('/public/kb/articles', search ? { search } : undefined);
       setArticles(res.data ?? []);
+      if (!search) {
+        gotFresh.current = true;
+        StorageService.set(cacheKey, res.data ?? []).catch(() => {}); // remembered for the next open
+      }
     } catch {
       // keep previous articles on error
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cacheKey]);
 
   const search = useCallback((query: string) => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -39,9 +52,18 @@ export function useKerAbieKnowledgeBase() {
   }, []);
 
   useEffect(() => {
+    // Remembered articles paint immediately; the request below then refreshes them.
+    StorageService.get<KerKbArticle[]>(cacheKey)
+      .then((remembered) => {
+        if (remembered && !gotFresh.current) {
+          setArticles(remembered);
+          setLoading(false);
+        }
+      })
+      .catch(() => {});
     fetchArticles();
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [fetchArticles]);
+  }, [fetchArticles, cacheKey]);
 
   return { articles, loading, search, getArticle, refetch: fetchArticles };
 }

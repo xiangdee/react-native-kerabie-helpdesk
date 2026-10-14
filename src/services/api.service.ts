@@ -12,6 +12,11 @@ export const ApiService = {
     _config = config;
   },
 
+  /** The widget key this app was initialised with ('' before init) — used to scope remembered content per widget. */
+  widgetKey(): string {
+    return _config?.widgetKey ?? '';
+  },
+
   async post<T = any>(path: string, body: unknown): Promise<T> {
     if (!_config) throw new Error('ApiService not initialized');
     const res = await fetch(`${BASE}${path}`, {
