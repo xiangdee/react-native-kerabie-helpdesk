@@ -74,6 +74,11 @@ class KerSocketService {
     // the first token arrives, chunk on every subsequent token, then the
     // normal 'chat:message' carries the persisted final message with a
     // matching streamId so the provider can swap the streaming bubble for it.
+    // Where a call stands, for the optional calls entry point (react-native-kerabie-helpdesk/calls).
+    this.socket.on('call:ringing', (data: any) => this.emit('call_ringing', data));
+    this.socket.on('call:queued', (data: any) => this.emit('call_queued', data));
+    this.socket.on('call:accepted', (data: any) => this.emit('call_accepted', data));
+    this.socket.on('call:ended', (data: any) => this.emit('call_ended', data));
     this.socket.on('chat:message:start', (data: any) => this.emit('message_start', data));
     this.socket.on('chat:message:chunk', (data: any) => this.emit('message_chunk', data));
   }

@@ -1,0 +1,6 @@
+{
+  "name": "react-native-kerabie-helpdesk-calls",
+  "private": true,
+  "main": "../src/calls/index.ts",
+  "types": "../src/calls/index.ts"
+}

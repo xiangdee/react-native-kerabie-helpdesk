@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Modal, Platform, View } from 'react-native';
 import {
   KerAbieContextValue,
@@ -10,6 +10,7 @@ import {
   KerLinkPreview,
   KerMessage,
   KerNavigationRoute,
+  KerPushProvider,
   KerTheme,
   KerUser,
 } from '../types';
@@ -17,7 +18,7 @@ import { KerAbieContext } from './KerAbieContext';
 import { ApiService } from '../services/api.service';
 import { socketService } from '../services/socket.service';
 import { StorageService } from '../services/storage.service';
-import { NotificationService } from '../services/notification.service';
+import { NotificationService, expoNotificationAdapter } from '../services/notification.service';
 import { KerAbieDeepLinkService } from '../services/deeplink.service';
 import { ChatScreen } from '../components/ChatScreen';
 import { CampaignBanner } from '../components/CampaignBanner';
@@ -82,8 +83,6 @@ export function KerAbieProvider({
   position = 'bottom-right',
   defaultOpen = false,
   hideFloatingButton = false,
-  navigation,
-  navigationRef,
   onNavigate,
   onOpenChat,
   onCloseChat,
@@ -106,6 +105,8 @@ export function KerAbieProvider({
   const [isConnected, setIsConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
+  // One push service per app. Expo unless the app passes its own adapter.
+  const notificationAdapter = useMemo(() => notifications?.adapter ?? expoNotificationAdapter(), [notifications?.adapter]);
   const [currentAppVersion, setCurrentAppVersion] = useState(appVersion);
   // Org-configured appearance from /public/widget/init — the dashboard's
   // ChatSettingsTab is the source of truth for orgs that never pass an
@@ -114,6 +115,8 @@ export function KerAbieProvider({
   const [remoteTheme, setRemoteTheme] = useState<Partial<KerTheme>>({});
   const [remoteChatSettings, setRemoteChatSettings] = useState<Partial<KerChatSettings>>({});
   const [ticketsEnabled, setTicketsEnabled] = useState(false);
+  const [callsEnabled, setCallsEnabled] = useState(false);
+  const [videoCallsEnabled, setVideoCallsEnabled] = useState(false);
 
   const theme: KerTheme = { ...DEFAULT_THEME, ...remoteTheme, ...themeProp };
   // ChatScreen's own header previously always showed the hardcoded title
@@ -134,39 +137,18 @@ export function KerAbieProvider({
   // creating another one.
   const draftCreation = useRef<{ tempId: string; promise: Promise<number | null>; resolve: (id: number | null) => void } | null>(null);
 
-  // Navigate to a route — adapter picks the right navigator
+  // Open the chat. With openMode 'push' the host app's own navigator shows it: the SDK calls onNavigate and the app
+  // does router.push(...) or navigation.navigate(...). It never imports a router, so it works with Expo Router
+  // (which no longer allows @react-navigation imports in app code from SDK 56) and with React Navigation alike.
   const navigateTo = useCallback((route: KerNavigationRoute) => {
-    // 'push' openMode: delegate to the host app's navigator
-    if (openMode === 'push') {
-      if (onNavigate) {
-        onNavigate(route);
-        return;
-      }
-      if (navigation === 'expo-router') {
-        import('expo-router').then((mod) => {
-          const path = route.type === 'conversation' && route.conversationId
-            ? `/chat/conversation/${route.conversationId}`
-            : '/chat';
-          mod.router.push(path as any);
-        }).catch(() => {
-          // expo-router not available — fall back to modal
-          setIsOpen(true);
-          onOpenChat?.();
-        });
-        return;
-      }
-      if (navigation === 'react-navigation' && navigationRef?.current) {
-        const params = route.type === 'conversation' && route.conversationId
-          ? { screen: 'KerAbieConversation', params: { conversationId: route.conversationId } }
-          : { screen: 'KerAbieChat' };
-        navigationRef.current.navigate('KerAbieChat', params);
-        return;
-      }
+    if (openMode === 'push' && onNavigate) {
+      onNavigate(route);
+      return;
     }
-    // Default (modal/sheet): open inline widget
+    // Default (modal/sheet): open the inline widget
     setIsOpen(true);
     onOpenChat?.();
-  }, [openMode, navigation, navigationRef, onNavigate, onOpenChat]);
+  }, [openMode, onNavigate, onOpenChat]);
 
   // Open the chat on the right conversation: from a tapped push notification (its data carries the
   // conversationId, so no URL scheme is involved) or from a <your-scheme>://conversation/:id link.
@@ -187,10 +169,10 @@ export function KerAbieProvider({
 
     let live = true;
     let stopListening: (() => void) | undefined;
-    NotificationService.onNotificationTap((data) => {
+    Promise.resolve(notificationAdapter.onTap((data) => {
       const id = Number(data.conversationId);
       if (Number.isInteger(id) && id > 0) openConversation(id);
-    }).then((stop) => { if (live) stopListening = stop; else stop(); });
+    })).then((stop) => { if (live) stopListening = stop; else stop(); });
 
     return () => {
       live = false;
@@ -222,44 +204,41 @@ export function KerAbieProvider({
       // Resolve orgId from widget key before connecting socket
       let orgId = 0;
       try {
-        const initRes = await fetch(`https://api.kerabie.com/public/widget/init`, {
-          headers: { 'x-widget-key': widgetKey },
-        });
-        if (initRes.ok) {
-          const data = await initRes.json();
-          orgId = data.orgId ?? 0;
+        const data = await ApiService.get<{ orgId?: number; settings?: any }>('/public/widget/init');
+        orgId = data.orgId ?? 0;
 
-          const s = data.settings ?? {};
-          setRemoteTheme({
-            ...(s.primaryColor ? { primaryColor: s.primaryColor } : {}),
-            ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : {}),
-            ...(s.colorType ? { colorType: s.colorType } : {}),
-            ...(s.borderRadius ? { borderRadius: s.borderRadius } : {}),
-            ...(s.theme ? { mode: s.theme } : {}),
-            ...(s.chatbotAvatarUrl ? { chatbotAvatarUrl: s.chatbotAvatarUrl } : {}),
-            // Custom launcher icon (already plan-gated server-side) and its size.
-            ...(s.launcherIconUrl ? { bubbleIcon: { uri: s.launcherIconUrl } } : {}),
-            ...(s.launcherIconSize ? { bubbleIconSize: s.launcherIconSize } : {}),
-          });
-          // Same dashboard-configured values the web widget reads, so one
-          // save in ChatSettingsTab reaches RN apps without the integrator
-          // hardcoding them via the chatSettings prop (which still wins).
-          setRemoteChatSettings({
-            ...(s.name ? { name: s.name } : {}),
-            ...(s.welcomeMessage ? { welcomeMessage: s.welcomeMessage } : {}),
-            ...(s.offlineMessage ? { offlineMessage: s.offlineMessage } : {}),
-            ...(typeof s.showBranding === 'boolean' ? { showBranding: s.showBranding } : {}),
-            ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
-            ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
-            ...(s.layout ? { layout: s.layout } : {}),
-            ...(typeof s.showMenu === 'boolean' ? { showMenu: s.showMenu } : {}),
-            ...(s.launcherType ? { launcherType: s.launcherType } : {}),
-            ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
-            ...(typeof s.customerEnrichmentEnabled === 'boolean' ? { customerEnrichmentEnabled: s.customerEnrichmentEnabled } : {}),
-            ...(s.customerEnrichmentForm ? { customerEnrichmentForm: s.customerEnrichmentForm } : {}),
-          });
-          if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
-        }
+        const s = data.settings ?? {};
+        setRemoteTheme({
+          ...(s.primaryColor ? { primaryColor: s.primaryColor } : {}),
+          ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : {}),
+          ...(s.colorType ? { colorType: s.colorType } : {}),
+          ...(s.borderRadius ? { borderRadius: s.borderRadius } : {}),
+          ...(s.theme ? { mode: s.theme } : {}),
+          ...(s.chatbotAvatarUrl ? { chatbotAvatarUrl: s.chatbotAvatarUrl } : {}),
+          // Custom launcher icon (already plan-gated server-side) and its size.
+          ...(s.launcherIconUrl ? { bubbleIcon: { uri: s.launcherIconUrl } } : {}),
+          ...(s.launcherIconSize ? { bubbleIconSize: s.launcherIconSize } : {}),
+        });
+        // Same dashboard-configured values the web widget reads, so one
+        // save in ChatSettingsTab reaches RN apps without the integrator
+        // hardcoding them via the chatSettings prop (which still wins).
+        setRemoteChatSettings({
+          ...(s.name ? { name: s.name } : {}),
+          ...(s.welcomeMessage ? { welcomeMessage: s.welcomeMessage } : {}),
+          ...(s.offlineMessage ? { offlineMessage: s.offlineMessage } : {}),
+          ...(typeof s.showBranding === 'boolean' ? { showBranding: s.showBranding } : {}),
+          ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
+          ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
+          ...(s.layout ? { layout: s.layout } : {}),
+          ...(typeof s.showMenu === 'boolean' ? { showMenu: s.showMenu } : {}),
+          ...(s.launcherType ? { launcherType: s.launcherType } : {}),
+          ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
+          ...(typeof s.customerEnrichmentEnabled === 'boolean' ? { customerEnrichmentEnabled: s.customerEnrichmentEnabled } : {}),
+          ...(s.customerEnrichmentForm ? { customerEnrichmentForm: s.customerEnrichmentForm } : {}),
+        });
+        if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
+        if (typeof s.callsEnabled === 'boolean') setCallsEnabled(s.callsEnabled);
+        if (typeof s.videoCallsEnabled === 'boolean') setVideoCallsEnabled(s.videoCallsEnabled);
       } catch {}
 
       socketService.connect({
@@ -502,7 +481,7 @@ export function KerAbieProvider({
       setCurrentUser(user);
       StorageService.set('user', user);
       if (sessionId) {
-        ApiService.post('/widget/identify', { user }).catch(() => {});
+        ApiService.post('/public/widget/identify', { user }).catch(() => {});
       }
     },
     [sessionId],
@@ -520,27 +499,27 @@ export function KerAbieProvider({
       const attrs = currentUser?.customAttributes ?? {};
       const updated = { ...currentUser, customAttributes: { ...attrs, [key]: value } };
       setCurrentUser(updated as KerUser);
-      ApiService.post('/widget/identify', { user: updated }).catch(() => {});
+      ApiService.post('/public/widget/identify', { user: updated }).catch(() => {});
     },
     [currentUser],
   );
 
   const requestNotificationPermission = useCallback(async () => {
-    const granted = await NotificationService.requestExpoPermission();
+    const granted = await notificationAdapter.requestPermission();
     setHasNotificationPermission(granted);
     if (granted) {
-      const token = await NotificationService.getExpoToken();
-      if (token) {
-        NotificationService.registerToken(token);
-        notifications?.onTokenRegister?.(token);
+      const registration = await notificationAdapter.getToken();
+      if (registration) {
+        NotificationService.registerToken(registration.token, registration.provider);
+        notifications?.onTokenRegister?.(registration.token, registration.provider);
       }
     }
     return granted;
-  }, [notifications]);
+  }, [notificationAdapter, notifications]);
 
-  const registerNotificationToken = useCallback((token: string) => {
-    NotificationService.registerToken(token);
-    notifications?.onTokenRegister?.(token);
+  const registerNotificationToken = useCallback((token: string, provider: KerPushProvider = 'expo') => {
+    NotificationService.registerToken(token, provider);
+    notifications?.onTokenRegister?.(token, provider);
   }, [notifications]);
 
   /**
@@ -560,7 +539,7 @@ export function KerAbieProvider({
     if (!sessionId) return;
 
     // Fire-and-forget: send context to backend
-    ApiService.post('/widget/context', {
+    ApiService.post('/public/widget/context', {
       contextType: context.type,
       contextId: context.id ?? null,
       contextTitle: context.title ?? null,
@@ -611,6 +590,8 @@ export function KerAbieProvider({
       hideFloatingButton,
       theme,
       ticketsEnabled,
+      callsEnabled,
+      videoCallsEnabled,
       launcherType: mergedChatSettings.launcherType ?? 'bubble',
       searchbarPlaceholder: mergedChatSettings.searchbarPlaceholder ?? 'Ask anything...',
     },

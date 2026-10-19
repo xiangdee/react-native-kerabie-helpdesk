@@ -34,6 +34,8 @@ export type {
   KerConversation,
   KerNotification,
   KerNotificationConfig,
+  KerNotificationAdapter,
+  KerPushProvider,
   KerChatSettings,
   KerChatContext,
   KerNavigationRoute,
@@ -45,11 +47,10 @@ export type {
   KerTicketStatus,
   OpenMode,
   BubblePosition,
-  NavigationAdapter,
 } from './types';
 
 // Notification helpers (Android channel setup, Expo token, etc.)
-export { NotificationService } from './services/notification.service';
+export { NotificationService, expoNotificationAdapter } from './services/notification.service';
 export type { KerAndroidChannel } from './services/notification.service';
 
 // Deep link handler (notification tap → open conversation)

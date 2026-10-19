@@ -145,7 +145,6 @@ export interface KerTicketMessage {
 }
 
 export type OpenMode = 'modal' | 'sheet' | 'push';
-export type NavigationAdapter = 'expo-router' | 'react-navigation' | 'custom';
 export type BubblePosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
 export interface KerNavigationRoute {
@@ -155,11 +154,30 @@ export interface KerNavigationRoute {
   conversationId?: number;
 }
 
+/** The push service a token came from. These are the values the Kerabie API accepts. */
+export type KerPushProvider = 'expo' | 'fcm';
+
+/**
+ * The one push service your app uses. Kerabie keeps a single token per visitor session, so pass one adapter.
+ * Expo is built in (`expoNotificationAdapter`); for Firebase or anything else, supply an object with these three methods.
+ */
+export interface KerNotificationAdapter {
+  /** Asks the user for permission to show notifications. Resolves true when granted. */
+  requestPermission: () => Promise<boolean>;
+  /** This device's token for the service the adapter wraps, and which service that is. Null when there is none. */
+  getToken: () => Promise<{ token: string; provider: KerPushProvider } | null>;
+  /**
+   * Calls `handler` with a notification's `data` when the user taps it, including the tap that launched the app.
+   * Returns a function that stops listening. Kerabie notifications carry `conversationId` and `orgId` in `data`.
+   */
+  onTap: (handler: (data: Record<string, unknown>) => void) => Promise<() => void> | (() => void);
+}
+
 export interface KerNotificationConfig {
-  provider: 'expo';
-  getToken?: () => Promise<string>;
-  onTokenRegister?: (token: string) => void;
-  onNotificationReceived?: (n: KerNotification) => void;
+  /** The push service to use. Defaults to Expo. Create it once, outside your component. */
+  adapter?: KerNotificationAdapter;
+  /** Called after a token has been registered with Kerabie. */
+  onTokenRegister?: (token: string, provider: KerPushProvider) => void;
 }
 
 /** One question on the pre-chat form (dashboard: Messages > Pre-chat form). name/email/phone are the contact's own fields; other keys become custom attributes. */
@@ -207,19 +225,9 @@ export interface KerAbieProviderProps {
   defaultOpen?: boolean;
   hideFloatingButton?: boolean;
   /**
-   * Navigation adapter type.
-   * - 'expo-router'       — SDK uses expo-router internally (dynamic import)
-   * - 'react-navigation'  — SDK calls navigationRef.navigate()
-   * - 'custom'            — SDK calls onNavigate() callback
-   * Only relevant when openMode='push'.
-   */
-  navigation?: NavigationAdapter;
-  /** React Navigation navigationRef (required when navigation='react-navigation') */
-  navigationRef?: React.RefObject<any>;
-  /**
-   * Called when the SDK needs to open a screen via your navigator.
-   * Use this for 'custom' navigation or to override default expo-router/react-navigation behavior.
-   * Only called when openMode='push'.
+   * Called when the SDK needs to open a screen in your app's navigator. This is the only navigation hook: call
+   * `router.push(...)` (Expo Router) or `navigation.navigate(...)` (React Navigation) from it.
+   * Only called when openMode='push'; without it the chat opens inline.
    */
   onNavigate?: (route: KerNavigationRoute) => void;
   onOpenChat?: () => void;
@@ -275,7 +283,7 @@ export interface KerAbieContextValue {
   // Notifications
   hasNotificationPermission: boolean;
   requestNotificationPermission: () => Promise<boolean>;
-  registerNotificationToken: (token: string) => void;
+  registerNotificationToken: (token: string, provider?: KerPushProvider) => void;
 
   /** Text handed to ChatScreen when the search-bar launcher opens the chat (any staged attachment goes with it). */
   chatDraft: { text: string } | null;
@@ -291,6 +299,9 @@ export interface KerAbieContextValue {
     widgetKey: string;
     /** From /public/widget/init — gates whether the host app should show a ticket entry point at all. */
     ticketsEnabled: boolean;
+    /** From /public/widget/init — the dashboard has calls on and the plan still has minutes. Used by the optional calls entry point. */
+    callsEnabled: boolean;
+    videoCallsEnabled: boolean;
     launcherType: 'bubble' | 'searchbar';
     searchbarPlaceholder: string;
   };

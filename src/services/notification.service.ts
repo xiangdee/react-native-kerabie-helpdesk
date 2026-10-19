@@ -1,4 +1,5 @@
 import { ApiService } from './api.service';
+import type { KerNotificationAdapter } from '../types';
 
 export interface KerAndroidChannel {
   channelId: string;
@@ -82,9 +83,9 @@ export const NotificationService = {
     } catch {}
   },
 
-  async registerToken(token: string, provider: 'expo' | 'fcm' | 'apns' = 'expo'): Promise<void> {
+  async registerToken(token: string, provider: 'expo' | 'fcm' = 'expo'): Promise<void> {
     try {
-      await ApiService.post('/widget/push-token', { token, provider });
+      await ApiService.post('/public/widget/push-token', { token, provider });
     } catch {}
   },
 
@@ -185,3 +186,15 @@ export const NotificationService = {
     return { granted, token };
   },
 };
+
+/** The built-in adapter for Expo Notifications. Create it once, outside your component. */
+export function expoNotificationAdapter(options?: { projectId?: string }): KerNotificationAdapter {
+  return {
+    requestPermission: () => NotificationService.requestExpoPermission(),
+    getToken: async () => {
+      const token = await NotificationService.getExpoToken(options?.projectId);
+      return token ? { token, provider: 'expo' } : null;
+    },
+    onTap: (handler) => NotificationService.onNotificationTap(handler),
+  };
+}

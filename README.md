@@ -19,6 +19,7 @@ Full TypeScript support, real-time chat, push notifications, contextual help, an
 - [Types](#types)
 - [Open modes in depth](#open-modes-in-depth)
 - [Campaigns](#campaigns)
+- [Calls (optional)](#calls-optional)
 - [Notification setup](#notification-setup)
   - [Android — register channels first](#android--register-channels-first)
   - [One-call setup](#one-call-setup)
@@ -133,8 +134,7 @@ export default function App() {
 | Prop | Type | Default | Description |
 | ---- | ---- | ------- | ----------- |
 | `openMode` | `"modal" \| "sheet" \| "push"` | `"modal"` | How the chat screen opens. See [Open modes in depth](#open-modes-in-depth). |
-| `navigation` | `"expo-router" \| "react-navigation" \| "custom"` | — | Required when `openMode="push"`. |
-| `navigationRef` | `any` | — | Your navigation ref (React Navigation only). |
+| `onNavigate` | `(route: KerNavigationRoute) => void` | — | Used when `openMode="push"`. The SDK calls it, and your app opens the chat in its own navigator. |
 | `onOpenChat` | `() => void` | — | Called when chat opens. Use with `openMode="custom"` to navigate yourself. |
 | `onCloseChat` | `() => void` | — | Called when chat closes. |
 
@@ -180,12 +180,32 @@ All fields inside the `theme` object are optional.
 
 ### Notifications
 
+Kerabie keeps one push token per visitor session, so the app uses **one push service**. Expo is built in. For Firebase or anything else, pass your own adapter.
+
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `notifications.provider` | `"expo"` | Push provider. Only `"expo"` is supported currently. |
-| `notifications.getToken` | `() => Promise<string>` | Override the default Expo token fetch. |
-| `notifications.onTokenRegister` | `(token: string) => void` | Called after the token is registered with Kerabie. |
-| `notifications.onNotificationReceived` | `(n: KerNotification) => void` | Called when a Kerabie push notification arrives. |
+| `notifications.adapter` | `KerNotificationAdapter` | The push service. Defaults to `expoNotificationAdapter()`. Create it once, outside your component. |
+| `notifications.onTokenRegister` | `(token: string, provider: KerPushProvider) => void` | Called after the token is registered with Kerabie. |
+
+An adapter has three methods:
+
+```ts
+interface KerNotificationAdapter {
+  requestPermission: () => Promise<boolean>;
+  getToken: () => Promise<{ token: string; provider: 'expo' | 'fcm' } | null>;
+  onTap: (handler: (data: Record<string, unknown>) => void) => Promise<() => void> | (() => void);
+}
+```
+
+`onTap` calls the handler with the notification's `data` when the user taps it, including the tap that launched the app. Kerabie notifications carry `conversationId` and `orgId` in `data`, and the SDK opens that conversation.
+
+```tsx
+import { expoNotificationAdapter } from 'react-native-kerabie-helpdesk';
+
+const adapter = expoNotificationAdapter({ projectId: 'your-expo-project-id' });
+
+<KerAbieProvider widgetKey="wk_xxx" notifications={{ adapter }}>
+```
 
 ---
 
@@ -388,7 +408,7 @@ import type {
   KerNotification,
   OpenMode,          // "modal" | "sheet" | "push"
   BubblePosition,    // "bottom-right" | "bottom-left" | "top-right" | "top-left"
-  NavigationAdapter, // "expo-router" | "react-navigation" | "custom"
+  KerNavigationRoute, // passed to onNavigate
 } from 'react-native-kerabie-helpdesk'
 ```
 
@@ -457,11 +477,19 @@ npx expo install @gorhom/bottom-sheet react-native-reanimated react-native-gestu
 
 ### `openMode="push"` — navigation stack
 
-Pushes the chat screen onto your existing stack. The provider must be inside `NavigationContainer` (React Navigation) or at root level (Expo Router).
+The SDK does not touch your navigator. With `openMode="push"` it calls `onNavigate`, and your app opens the chat screen itself. One hook works with every navigator, including Expo Router, which from SDK 56 no longer allows importing `@react-navigation/*` in app code.
 
 **Expo Router:**
 ```tsx
-<KerAbieProvider widgetKey="wk_xxx" openMode="push" navigation="expo-router">
+import { router } from 'expo-router';
+
+<KerAbieProvider
+  widgetKey="wk_xxx"
+  openMode="push"
+  onNavigate={(route) =>
+    router.push(route.type === 'conversation' ? `/chat/${route.conversationId}` : '/chat')
+  }
+>
   <Stack />
 </KerAbieProvider>
 ```
@@ -471,12 +499,13 @@ Pushes the chat screen onto your existing stack. The provider must be inside `Na
 <KerAbieProvider
   widgetKey="wk_xxx"
   openMode="push"
-  navigation="react-navigation"
-  navigationRef={navigationRef}
+  onNavigate={(route) => navigationRef.current?.navigate('KerAbieChat', route)}
 >
   <MyNavigator />
 </KerAbieProvider>
 ```
+
+You define the `/chat` route or the `KerAbieChat` screen yourself and render `KerAbieChatScreen` in it. Without `onNavigate`, the chat opens inline.
 
 **Custom (any open mode) — control it yourself:**
 ```tsx
@@ -523,6 +552,79 @@ import { usePathname, router } from 'expo-router';
 ```
 
 Campaign results (shown, opened, clicked, replied) are counted in the dashboard like they are for the website widget. Nothing pops up while the chat is open.
+
+## Calls (optional)
+
+Customers can call your team from the app: voice, and video if you turn it on. Everything below is optional. **Chat, tickets and notifications work without any of it, including in Expo Go.**
+
+### What you need
+
+- Calls turned on in the dashboard (**Settings, Widget, Calls**) and call minutes on your plan.
+- A **development build**. Calls use native WebRTC code, so they do not run in Expo Go. When the packages are missing, or you are in Expo Go, you simply do not import the calls entry point and the app is unchanged.
+
+### Install
+
+```bash
+npx expo install livekit-client @livekit/react-native @livekit/react-native-expo-plugin @livekit/react-native-webrtc @config-plugins/react-native-webrtc
+```
+
+Add the two plugins to `app.json`, then make a new development build:
+
+```json
+{
+  "expo": {
+    "plugins": ["@livekit/react-native-expo-plugin", "@config-plugins/react-native-webrtc"]
+  }
+}
+```
+
+On bare React Native, follow the [LiveKit React Native setup](https://github.com/livekit/client-sdk-react-native) for the Android and iOS native files instead.
+
+The app must be allowed to use the microphone, and the camera if you use video: `RECORD_AUDIO` and `CAMERA` on Android, and a reason for `NSMicrophoneUsageDescription` and `NSCameraUsageDescription` on iOS. The phone asks the customer the first time.
+
+### Use it
+
+Calls come from a separate entry point, so the main package never loads the call libraries:
+
+```tsx
+import { KerAbieCallButton } from 'react-native-kerabie-helpdesk/calls'
+
+// Anywhere inside <KerAbieProvider>. It renders nothing when calls are off or the plan has no minutes left.
+<KerAbieCallButton label="Call us" />
+<KerAbieCallButton label="Video call" video />
+```
+
+The button opens a call screen that shows the queue position, ringing, the call itself (mute, camera, end) and how it ended.
+
+For your own design, use the hook and the screen separately:
+
+```tsx
+import { useKerAbieCall, KerAbieCallModal } from 'react-native-kerabie-helpdesk/calls'
+
+function Support() {
+  const call = useKerAbieCall()
+  return (
+    <>
+      {call.available && <Button title="Call support" onPress={() => call.start()} />}
+      <KerAbieCallModal call={call} />
+    </>
+  )
+}
+```
+
+| Member | Description |
+| ---- | ---- |
+| `available` | Calls are on in the dashboard and the plan has minutes. |
+| `videoAvailable` | Video is on too. |
+| `state.phase` | `idle`, `starting`, `waiting` (in the queue), `ringing`, `connected` or `ended`. |
+| `state.queuePosition` | Your place in the queue while `waiting`. |
+| `state.handler` | `HUMAN` or `AI`, once answered. |
+| `state.endReason` | Why it ended: `hangup`, `cancelled`, `missed`, `limit` or `connection_lost`. |
+| `start(video?)` | Starts a call. A customer who already has one is put back into it. |
+| `hangUp()` | Ends the call, or cancels it before it is answered. |
+| `dismiss()` | Closes the call screen after it ended. |
+
+A call goes to every free agent at once; the first to answer wins. When nobody is free, the AI voice agent answers if you turned it on, and otherwise the customer waits in the queue and the call is marked missed after two minutes. A call you reopen the app into is picked up again.
 
 ## Notification setup
 
