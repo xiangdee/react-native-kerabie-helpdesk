@@ -383,6 +383,11 @@ export function KerAbieProvider({
     return () => { unsubs.forEach((u) => u()); };
   }, [isOpen]);
 
+  // The app's screen (the `screen` prop) goes to the server so agents see where the visitor is.
+  useEffect(() => {
+    if (screen) socketService.setScreen(screen);
+  }, [screen]);
+
   // Reset unread when opened
   useEffect(() => {
     if (isOpen) setUnreadCount(0);

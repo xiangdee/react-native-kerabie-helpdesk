@@ -551,6 +551,8 @@ import { usePathname, router } from 'expo-router';
 >
 ```
 
+The `screen` prop is also sent to Kerabie, so agents see the screen the customer is on and the last few they visited, next to the app name, version, build and whether it is iOS or Android.
+
 Campaign results (shown, opened, clicked, replied) are counted in the dashboard like they are for the website widget. Nothing pops up while the chat is open.
 
 ## Calls (optional)

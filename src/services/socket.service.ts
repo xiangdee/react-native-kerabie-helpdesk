@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { KerMessage, KerUser } from '../types';
 
@@ -18,6 +19,9 @@ type EventHandler<T = any> = (data: T) => void;
 class KerSocketService {
   private socket: Socket | null = null;
   private handlers: Map<string, Set<EventHandler>> = new Map();
+  // The screen the app said the visitor is on (see setScreen), re-sent after every reconnect.
+  private screen: string | null = null;
+  private screenSince = 0;
 
   connect(config: SocketConfig) {
     if (this.socket?.connected) {
@@ -46,9 +50,12 @@ class KerSocketService {
           appName: config.appName,
           appVersion: config.appVersion,
           appBuild: config.appBuild,
+          // Lets agents see ios or android next to the app version.
+          ...(Platform.OS === 'ios' || Platform.OS === 'android' ? { platform: Platform.OS } : {}),
           ...(config.user?.customAttributes ?? {}),
         },
       });
+      if (this.screen) this.socket?.emit('visitor:page', { url: this.screen });
       this.emit('connect', undefined);
     });
 
@@ -86,6 +93,21 @@ class KerSocketService {
   disconnect() {
     this.socket?.disconnect();
     this.socket = null;
+  }
+
+  /**
+   * Tells the server which screen the visitor is on (a path such as "/checkout") and how long they stayed on the one
+   * before, so agents see the page and the recent screens. Same screen again changes nothing.
+   */
+  setScreen(path: string) {
+    const next = path.trim().startsWith('/') ? path.trim() : `/${path.trim()}`;
+    if (next === this.screen) return;
+    const previous = this.screen;
+    const now = Date.now();
+    if (previous) this.socket?.emit('visitor:page_exit', { url: previous, timeSpentMs: now - this.screenSince });
+    this.screen = next;
+    this.screenSince = now;
+    this.socket?.emit('visitor:page', { url: next, ...(previous ? { previousUrl: previous } : {}) });
   }
 
   // The backend's visitor message handler is 'visitor:message' (chat.gateway.ts
