@@ -186,6 +186,11 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
     (chatSettings?.customerEnrichmentEnabled === true || isOfflineNoBot) && !alreadyAnswered && ctx.messages.length === 0;
 
   // Guided flow buttons: the greeting's, or those on the latest bot message until the visitor answers it.
+  // The opening question can differ by screen: ask again for the one the visitor is on now, before they tap anything.
+  useEffect(() => {
+    if (ctx.messages.length === 0) void ctx.refreshGreeting();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const guided = activeChoices(ctx.messages, chatSettings?.guidedGreeting, !showPreChatForm);
 
   const submitPreChat = useCallback((answers: Record<string, string>) => {

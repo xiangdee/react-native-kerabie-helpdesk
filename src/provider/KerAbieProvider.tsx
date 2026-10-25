@@ -8,6 +8,7 @@ import {
   KerChatSettings,
   KerConversation,
   KerLinkPreview,
+  KerGuidedGreeting,
   KerMessage,
   KerNavigationRoute,
   KerPushProvider,
@@ -473,6 +474,13 @@ export function KerAbieProvider({
     [currentConversation, noteCampaignReply],
   );
 
+  const refreshGreeting = useCallback(async () => {
+    try {
+      const r = await ApiService.get<{ guidedGreeting?: KerGuidedGreeting | null }>('/public/widget/greeting');
+      setRemoteChatSettings((prev) => ({ ...prev, guidedGreeting: r.guidedGreeting ?? null }));
+    } catch {}
+  }, []);
+
   const retryMessage = useCallback(
     async (msg: KerMessage) => {
       if (msg.status !== 'failed') return;
@@ -568,6 +576,7 @@ export function KerAbieProvider({
     currentConversation,
     messages,
     sendMessage,
+    refreshGreeting,
     retryMessage,
     isTyping,
     isAiTyping,

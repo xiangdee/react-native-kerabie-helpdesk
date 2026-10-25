@@ -271,6 +271,8 @@ export interface KerAbieContextValue {
   /** `choice` marks a tap on a guided flow's button; `body` is then the button's label. */
   sendMessage: (body: string, attachments?: KerAttachment[], choice?: { flowId: string; choiceId: string }) => Promise<void>;
   retryMessage: (msg: KerMessage) => Promise<void>;
+  /** Asks again for the guided flow's opening question for the screen the visitor is on now (it can differ by page). */
+  refreshGreeting: () => Promise<void>;
   isTyping: boolean;
   /** True while the typing indicator is the AI chatbot (not a human agent) — ChatScreen shows the thinking orb for it. */
   isAiTyping: boolean;
