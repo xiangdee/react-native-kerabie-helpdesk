@@ -18,6 +18,8 @@ import { PreChatForm } from './PreChatForm';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { AiOrb } from './AiOrb';
+import { GuidedChoices } from './GuidedChoices';
+import { activeChoices } from '../utils/guidedChoices';
 import { gradientColors } from './GradientLayer';
 import { InputBar, PendingAttachment } from './InputBar';
 import { ImageViewerModal } from './ImageViewerModal';
@@ -183,6 +185,9 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
   const showPreChatForm =
     (chatSettings?.customerEnrichmentEnabled === true || isOfflineNoBot) && !alreadyAnswered && ctx.messages.length === 0;
 
+  // Guided flow buttons: the greeting's, or those on the latest bot message until the visitor answers it.
+  const guided = activeChoices(ctx.messages, chatSettings?.guidedGreeting, !showPreChatForm);
+
   const submitPreChat = useCallback((answers: Record<string, string>) => {
     // name/email/phone are the contact's own fields; every other answer is a custom attribute.
     const user: KerUser = { ...ctx.currentUser };
@@ -243,7 +248,17 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
       )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {ctx.messages.length === 0 ? (
+        {ctx.messages.length === 0 && chatSettings?.guidedGreeting ? (
+          // The org's guided flow opens the chat with a question and buttons. It is only on screen here; the server
+          // saves it as the conversation's first message once a button is tapped.
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <MessageBubble
+              message={{ id: 'guided-greeting', body: chatSettings.guidedGreeting.message, createdAt: new Date().toISOString(), senderType: 'bot' }}
+              theme={theme}
+              onPressImage={setViewingImageUri}
+            />
+          </View>
+        ) : ctx.messages.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
             <Text style={{ fontSize: 28, marginBottom: 12 }}>👋</Text>
             <Text style={{ fontSize: 16, fontWeight: '600', color: palette.text, textAlign: 'center', fontFamily: theme.fontFamily }}>
@@ -280,6 +295,16 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
           ctx.isAiTyping
             ? <AiOrb colors={gradientColors(theme)} color={theme.primaryColor ?? palette.accent} textColor={palette.textMuted} />
             : <TypingIndicator color={palette.accent} backgroundColor={palette.agentBubble} />
+        )}
+
+        {guided && (
+          <GuidedChoices
+            choices={guided.choices}
+            disabled={!ctx.isConnected}
+            theme={theme}
+            palette={palette}
+            onPick={(c) => ctx.sendMessage(c.label, undefined, { flowId: guided.flowId, choiceId: c.id })}
+          />
         )}
 
         {attachmentError && (

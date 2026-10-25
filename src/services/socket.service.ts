@@ -126,11 +126,13 @@ class KerSocketService {
     conversationId: number | undefined,
     body: string,
     attachments?: Array<{ type: 'image' | 'file' | 'audio' | 'video'; key?: string; name?: string }>,
+    choice?: { flowId: string; choiceId: string },
   ) {
     const first = attachments?.[0];
     this.socket?.emit('visitor:message', {
       conversationId,
       body,
+      choice,
       type: first?.type,
       metadata: first ? { key: first.key, fileName: first.name } : undefined,
     });

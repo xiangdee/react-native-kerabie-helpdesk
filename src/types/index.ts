@@ -63,6 +63,12 @@ export interface KerNotification {
   timestamp: string;
 }
 
+/** One button of a guided flow (a menu the organisation built in the dashboard). */
+export interface KerGuidedChoice { id: string; label: string }
+
+/** The opening question of the organisation's guided flow, with its buttons, shown before the visitor types. */
+export interface KerGuidedGreeting { flowId: string; message: string; choices: KerGuidedChoice[] }
+
 export interface KerMessage {
   id: number | string;
   /** Set on messages from the server; absent on local optimistic bubbles. */
@@ -211,6 +217,8 @@ export interface KerChatSettings {
   /** Ask visitors the pre-chat form's questions before their first message. Mirrors ChatWidget.customerEnrichmentEnabled/Form. */
   customerEnrichmentEnabled?: boolean;
   customerEnrichmentForm?: { fields: KerEnrichmentField[] } | null;
+  /** The org's guided flow opens the chat with this question and its buttons. Mirrors the widget's guidedGreeting. */
+  guidedGreeting?: KerGuidedGreeting | null;
 }
 
 export interface KerAbieProviderProps {
@@ -260,7 +268,8 @@ export interface KerAbieContextValue {
   /** The identified user's name, used to fill {{name}} in the welcome message. */
   visitorName: string;
   messages: KerMessage[];
-  sendMessage: (body: string, attachments?: KerAttachment[]) => Promise<void>;
+  /** `choice` marks a tap on a guided flow's button; `body` is then the button's label. */
+  sendMessage: (body: string, attachments?: KerAttachment[], choice?: { flowId: string; choiceId: string }) => Promise<void>;
   retryMessage: (msg: KerMessage) => Promise<void>;
   isTyping: boolean;
   /** True while the typing indicator is the AI chatbot (not a human agent) — ChatScreen shows the thinking orb for it. */

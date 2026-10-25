@@ -40,7 +40,7 @@ function generateSessionId(): string {
 // metadata.source === 'ai', not a real 'bot' role at the wire level).
 function mapIncomingMessage(raw: any): KerMessage {
   const senderType: KerMessage['senderType'] =
-    raw.senderRole === 'customer' ? 'visitor' : raw.metadata?.source === 'ai' ? 'bot' : 'agent';
+    raw.senderRole === 'customer' ? 'visitor' : raw.metadata?.source === 'ai' || raw.metadata?.source === 'guided' ? 'bot' : 'agent';
   return { ...raw, senderType };
 }
 
@@ -235,6 +235,7 @@ export function KerAbieProvider({
           ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
           ...(typeof s.customerEnrichmentEnabled === 'boolean' ? { customerEnrichmentEnabled: s.customerEnrichmentEnabled } : {}),
           ...(s.customerEnrichmentForm ? { customerEnrichmentForm: s.customerEnrichmentForm } : {}),
+          guidedGreeting: s.guidedGreeting ?? null,
         });
         if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
         if (typeof s.callsEnabled === 'boolean') setCallsEnabled(s.callsEnabled);
@@ -416,7 +417,7 @@ export function KerAbieProvider({
   const noteCampaignReply = campaigns.noteReply;
 
   const sendMessage = useCallback(
-    async (body: string, attachments?: KerAttachment[]) => {
+    async (body: string, attachments?: KerAttachment[], choice?: { flowId: string; choiceId: string }) => {
       noteCampaignReply();
       let convId = currentConversation?.id ?? null;
       if (!convId && draftCreation.current) convId = await draftCreation.current.promise;
@@ -451,7 +452,7 @@ export function KerAbieProvider({
         const promise = new Promise<number | null>((r) => { resolve = r; });
         draftCreation.current = { tempId, promise, resolve };
       }
-      socketService.sendMessage(convId ?? undefined, body, attachments);
+      socketService.sendMessage(convId ?? undefined, body, attachments, choice);
 
       // Mark failed if no echo from server within 8s
       const timer = setTimeout(() => {
