@@ -18,6 +18,7 @@ import {
 import { KerAbieContext } from './KerAbieContext';
 import { ApiService } from '../services/api.service';
 import { socketService } from '../services/socket.service';
+import { tonalEnd } from '../theme/tonalEnd';
 import { StorageService } from '../services/storage.service';
 import { NotificationService, expoNotificationAdapter } from '../services/notification.service';
 import { KerAbieDeepLinkService } from '../services/deeplink.service';
@@ -189,7 +190,8 @@ export function KerAbieProvider({
   const applySettings = (s: any) => {
     setRemoteTheme({
       ...(s.primaryColor ? { primaryColor: s.primaryColor } : {}),
-      ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : {}),
+      // No end color saved but a brand color is: a gradient made from the brand color alone.
+      ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : s.primaryColor ? { secondaryColor: tonalEnd(s.primaryColor) } : {}),
       ...(s.colorType ? { colorType: s.colorType } : {}),
       ...(s.borderRadius ? { borderRadius: s.borderRadius } : {}),
       ...(s.theme ? { mode: s.theme } : {}),
