@@ -118,6 +118,8 @@ export function KerAbieProvider({
   const [ticketsEnabled, setTicketsEnabled] = useState(false);
   const [callsEnabled, setCallsEnabled] = useState(false);
   const [videoCallsEnabled, setVideoCallsEnabled] = useState(false);
+  // The org's settings have arrived; the launcher is not drawn before then, so nobody sees defaults swap for the org's look.
+  const [configReady, setConfigReady] = useState(false);
 
   const theme: KerTheme = { ...DEFAULT_THEME, ...remoteTheme, ...themeProp };
   // ChatScreen's own header previously always showed the hardcoded title
@@ -182,6 +184,44 @@ export function KerAbieProvider({
     };
   }, [navigateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Applies the org's dashboard settings. Runs first from the copy remembered from the last launch (so the launcher
+  // shows the org's own look immediately), then again with the fresh answer from /public/widget/init.
+  const applySettings = (s: any) => {
+    setRemoteTheme({
+      ...(s.primaryColor ? { primaryColor: s.primaryColor } : {}),
+      ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : {}),
+      ...(s.colorType ? { colorType: s.colorType } : {}),
+      ...(s.borderRadius ? { borderRadius: s.borderRadius } : {}),
+      ...(s.theme ? { mode: s.theme } : {}),
+      ...(s.chatbotAvatarUrl ? { chatbotAvatarUrl: s.chatbotAvatarUrl } : {}),
+      // Custom launcher icon (already plan-gated server-side) and its size.
+      ...(s.launcherIconUrl ? { bubbleIcon: { uri: s.launcherIconUrl } } : {}),
+      ...(s.launcherIconSize ? { bubbleIconSize: s.launcherIconSize } : {}),
+    });
+    // Same dashboard-configured values the web widget reads, so one
+    // save in ChatSettingsTab reaches RN apps without the integrator
+    // hardcoding them via the chatSettings prop (which still wins).
+    setRemoteChatSettings({
+      ...(s.name ? { name: s.name } : {}),
+      ...(s.welcomeMessage ? { welcomeMessage: s.welcomeMessage } : {}),
+      ...(s.offlineMessage ? { offlineMessage: s.offlineMessage } : {}),
+      ...(typeof s.showBranding === 'boolean' ? { showBranding: s.showBranding } : {}),
+      ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
+      ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
+      ...(s.layout ? { layout: s.layout } : {}),
+      ...(typeof s.showMenu === 'boolean' ? { showMenu: s.showMenu } : {}),
+      ...(s.launcherType ? { launcherType: s.launcherType } : {}),
+      ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
+      ...(typeof s.customerEnrichmentEnabled === 'boolean' ? { customerEnrichmentEnabled: s.customerEnrichmentEnabled } : {}),
+      ...(s.customerEnrichmentForm ? { customerEnrichmentForm: s.customerEnrichmentForm } : {}),
+      guidedGreeting: s.guidedGreeting ?? null,
+    });
+    if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
+    if (typeof s.callsEnabled === 'boolean') setCallsEnabled(s.callsEnabled);
+    if (typeof s.videoCallsEnabled === 'boolean') setVideoCallsEnabled(s.videoCallsEnabled);
+    setConfigReady(true);
+  };
+
   // Init session
   useEffect(() => {
     (async () => {
@@ -191,6 +231,11 @@ export function KerAbieProvider({
         await StorageService.set('session_id', sid);
       }
       setSessionId(sid);
+
+      try {
+        const cached = await StorageService.get<any>('widget_settings:' + widgetKey);
+        if (cached) applySettings(cached);
+      } catch {}
 
       ApiService.init({ widgetKey, sessionId: sid });
 
@@ -209,38 +254,8 @@ export function KerAbieProvider({
         orgId = data.orgId ?? 0;
 
         const s = data.settings ?? {};
-        setRemoteTheme({
-          ...(s.primaryColor ? { primaryColor: s.primaryColor } : {}),
-          ...(s.secondaryColor ? { secondaryColor: s.secondaryColor } : {}),
-          ...(s.colorType ? { colorType: s.colorType } : {}),
-          ...(s.borderRadius ? { borderRadius: s.borderRadius } : {}),
-          ...(s.theme ? { mode: s.theme } : {}),
-          ...(s.chatbotAvatarUrl ? { chatbotAvatarUrl: s.chatbotAvatarUrl } : {}),
-          // Custom launcher icon (already plan-gated server-side) and its size.
-          ...(s.launcherIconUrl ? { bubbleIcon: { uri: s.launcherIconUrl } } : {}),
-          ...(s.launcherIconSize ? { bubbleIconSize: s.launcherIconSize } : {}),
-        });
-        // Same dashboard-configured values the web widget reads, so one
-        // save in ChatSettingsTab reaches RN apps without the integrator
-        // hardcoding them via the chatSettings prop (which still wins).
-        setRemoteChatSettings({
-          ...(s.name ? { name: s.name } : {}),
-          ...(s.welcomeMessage ? { welcomeMessage: s.welcomeMessage } : {}),
-          ...(s.offlineMessage ? { offlineMessage: s.offlineMessage } : {}),
-          ...(typeof s.showBranding === 'boolean' ? { showBranding: s.showBranding } : {}),
-          ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
-          ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
-          ...(s.layout ? { layout: s.layout } : {}),
-          ...(typeof s.showMenu === 'boolean' ? { showMenu: s.showMenu } : {}),
-          ...(s.launcherType ? { launcherType: s.launcherType } : {}),
-          ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
-          ...(typeof s.customerEnrichmentEnabled === 'boolean' ? { customerEnrichmentEnabled: s.customerEnrichmentEnabled } : {}),
-          ...(s.customerEnrichmentForm ? { customerEnrichmentForm: s.customerEnrichmentForm } : {}),
-          guidedGreeting: s.guidedGreeting ?? null,
-        });
-        if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
-        if (typeof s.callsEnabled === 'boolean') setCallsEnabled(s.callsEnabled);
-        if (typeof s.videoCallsEnabled === 'boolean') setVideoCallsEnabled(s.videoCallsEnabled);
+        StorageService.set('widget_settings:' + widgetKey, s).catch(() => {});
+        applySettings(s);
       } catch {}
 
       socketService.connect({
@@ -607,6 +622,7 @@ export function KerAbieProvider({
       ticketsEnabled,
       callsEnabled,
       videoCallsEnabled,
+      configReady,
       launcherType: mergedChatSettings.launcherType ?? 'bubble',
       searchbarPlaceholder: mergedChatSettings.searchbarPlaceholder ?? 'Ask anything...',
     },

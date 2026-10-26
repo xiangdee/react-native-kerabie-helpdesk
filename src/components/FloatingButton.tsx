@@ -1,8 +1,9 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { GradientLayer, gradientColors } from './GradientLayer';
 import { DEFAULT_PRIMARY_COLOR } from '../theme/palette';
+import { useLauncherReveal } from '../hooks/useLauncherReveal';
 
 interface Props {
   style?: ViewStyle;
@@ -14,8 +15,10 @@ export function KerAbieFloatingButton({ style, size = 56, badgeColor = '#ef4444'
   const ctx = useKerAbieContext();
   const { config, toggle, unreadCount } = ctx;
 
-  // The org picked the search-bar launcher instead — <KerAbieSearchBar /> renders that.
-  if (config.launcherType === 'searchbar') return null;
+  const reveal = useLauncherReveal(config.configReady);
+
+  // Nothing until the org's settings arrive; and if the org picked the search-bar launcher, <KerAbieSearchBar /> renders that.
+  if (!config.configReady || config.launcherType === 'searchbar') return null;
 
   const posStyle = getPositionStyle(config.position);
   // Same none/small/medium/large setting as the web widget's launcher, scaled to the button — 'large' is a circle.
@@ -23,7 +26,7 @@ export function KerAbieFloatingButton({ style, size = 56, badgeColor = '#ef4444'
   const radius = size * (LAUNCHER_RADIUS[config.theme.borderRadius ?? 'medium'] ?? LAUNCHER_RADIUS.medium);
 
   return (
-    <View style={[styles.wrapper, posStyle, style]} pointerEvents="box-none">
+    <Animated.View style={[styles.wrapper, posStyle, style, reveal]} pointerEvents="box-none">
       <TouchableOpacity
         onPress={toggle}
         style={[
@@ -56,7 +59,7 @@ export function KerAbieFloatingButton({ style, size = 56, badgeColor = '#ef4444'
           <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

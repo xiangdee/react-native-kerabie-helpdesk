@@ -313,6 +313,8 @@ export interface KerAbieContextValue {
     /** From /public/widget/init — the dashboard has calls on and the plan still has minutes. Used by the optional calls entry point. */
     callsEnabled: boolean;
     videoCallsEnabled: boolean;
+    /** /public/widget/init has answered — launchers render nothing before this. */
+    configReady: boolean;
     launcherType: 'bubble' | 'searchbar';
     searchbarPlaceholder: string;
   };

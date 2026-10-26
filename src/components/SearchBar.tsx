@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { GradientLayer, gradientColors } from './GradientLayer';
 import { DEFAULT_PRIMARY_COLOR, usePalette } from '../theme/palette';
 import { AttachmentService } from '../services/attachment.service';
 import { useAttachmentStaging } from '../hooks/useAttachmentStaging';
+import { useLauncherReveal } from '../hooks/useLauncherReveal';
 
 interface Props {
   style?: ViewStyle;
@@ -31,7 +32,8 @@ export function KerAbieSearchBar({ style }: Props) {
 
   // Hooks first, then the early return.
   const palette = usePalette(config.theme);
-  if (config.launcherType !== 'searchbar' || config.hideFloatingButton || isOpen) return null;
+  const reveal = useLauncherReveal(config.configReady);
+  if (!config.configReady || config.launcherType !== 'searchbar' || config.hideFloatingButton || isOpen) return null;
 
   const atTop = config.position?.startsWith('top');
 
@@ -111,10 +113,10 @@ export function KerAbieSearchBar({ style }: Props) {
   );
 
   return (
-    <View pointerEvents="box-none" style={[styles.wrapper, atTop ? { top: 60 } : { bottom: 24 }, style]}>
+    <Animated.View pointerEvents="box-none" style={[styles.wrapper, atTop ? { top: 60 } : { bottom: 24 }, style, reveal]}>
       {/* At the top edge the staged file sits below the bar, not above it. */}
       {atTop ? <>{bar}{notes}</> : <>{notes}{bar}</>}
-    </View>
+    </Animated.View>
   );
 }
 
