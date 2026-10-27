@@ -13,6 +13,7 @@ export { useKerAbieTickets } from './hooks/useKerAbieTickets';
 
 // Components
 export { ChatScreen as KerAbieChatScreen } from './components/ChatScreen';
+export { WidgetShell as KerAbieWidget } from './components/WidgetShell';
 export { KerAbieFloatingButton } from './components/FloatingButton';
 export { KerAbieSearchBar } from './components/SearchBar';
 export type { KerCampaign } from './utils/campaignRules';

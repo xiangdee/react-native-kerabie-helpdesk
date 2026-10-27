@@ -2,8 +2,9 @@ import React from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { GradientLayer, gradientColors } from './GradientLayer';
-import { DEFAULT_PRIMARY_COLOR } from '../theme/palette';
+import { DEFAULT_PRIMARY_COLOR, usePalette } from '../theme/palette';
 import { useLauncherReveal } from '../hooks/useLauncherReveal';
+import { Icon } from './Icon';
 
 interface Props {
   style?: ViewStyle;
@@ -16,6 +17,7 @@ export function KerAbieFloatingButton({ style, size = 56, badgeColor = '#ef4444'
   const { config, toggle, unreadCount } = ctx;
 
   const reveal = useLauncherReveal(config.configReady);
+  const onPrimary = usePalette(config.theme).onPrimary;
 
   // Nothing until the org's settings arrive; and if the org picked the search-bar launcher, <KerAbieSearchBar /> renders that.
   if (!config.configReady || config.launcherType === 'searchbar') return null;
@@ -51,7 +53,7 @@ export function KerAbieFloatingButton({ style, size = 56, badgeColor = '#ef4444'
             resizeMode="contain"
           />
         ) : (
-          <Text style={{ fontSize: config.theme.bubbleIconSize ?? 24 }}>💬</Text>
+          <Icon name="chat" size={config.theme.bubbleIconSize ?? 26} color={onPrimary} />
         )}
       </TouchableOpacity>
       {unreadCount > 0 && (

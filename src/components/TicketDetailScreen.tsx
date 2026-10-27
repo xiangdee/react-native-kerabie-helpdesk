@@ -14,6 +14,8 @@ import { useKerAbieTickets } from '../hooks/useKerAbieTickets';
 import { Skeleton } from './Skeleton';
 import { usePalette, withAlpha } from '../theme/palette';
 import type { KerTheme, KerTicket, KerTicketMessage } from '../types';
+import { Icon } from './Icon';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 
 interface Props {
   ticketId: number;
@@ -29,7 +31,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export function TicketDetailScreen({ ticketId, onClose, theme }: Props) {
-  const { getTicket, replyToTicket } = useKerAbieTickets();
+
+  const { ref: kbRef, inset: kbInset } = useKeyboardInset();  const { getTicket, replyToTicket } = useKerAbieTickets();
   const [ticket, setTicket] = useState<KerTicket | null>(null);
   const [messages, setMessages] = useState<KerTicketMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,10 +93,10 @@ export function TicketDetailScreen({ ticketId, onClose, theme }: Props) {
   };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: background }]}>
+    <SafeAreaView ref={kbRef} style={[styles.root, { backgroundColor: background, paddingBottom: kbInset }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.close, { color: palette.accent }]}>{'‹ Back'}</Text>
+          <Icon name="back" size={22} color={palette.accent} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text numberOfLines={1} style={[styles.headerTitle, { color: textColor }]}>
@@ -130,7 +133,7 @@ export function TicketDetailScreen({ ticketId, onClose, theme }: Props) {
         />
       )}
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View>
         <View style={[styles.inputBar, { borderTopColor: palette.border }]}>
           <TextInput
             value={draft}
@@ -149,7 +152,7 @@ export function TicketDetailScreen({ ticketId, onClose, theme }: Props) {
             <Text style={[styles.sendBtnText, { color: palette.onPrimary }]}>Send</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }

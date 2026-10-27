@@ -13,6 +13,7 @@ import { KerTheme } from '../types';
 import { EmojiPicker } from './EmojiPicker';
 import { GradientLayer, bubbleRadius, gradientColors } from './GradientLayer';
 import { usePalette } from '../theme/palette';
+import { Icon } from './Icon';
 
 export interface PendingAttachment {
   /** Local file:// URI for the preview thumbnail. */
@@ -70,7 +71,7 @@ export function InputBar({
             <Image source={{ uri: pendingAttachment.uri }} style={styles.pendingThumb} />
           ) : (
             <View style={[styles.pendingFileIcon, { backgroundColor: palette.surfaceStrong }]}>
-              <Text style={{ fontSize: 15 }}>📎</Text>
+              <Icon name="attach" size={16} color={palette.textMuted} />
             </View>
           )}
           <Text numberOfLines={1} style={[styles.pendingName, { color: palette.text }]}>{pendingAttachment.name}</Text>
@@ -78,7 +79,7 @@ export function InputBar({
             <ActivityIndicator size="small" color={palette.textMuted} />
           ) : (
             <TouchableOpacity onPress={onRemoveAttachment} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 13, color: palette.textSubtle }}>✕</Text>
+              <Icon name="close" size={16} color={palette.textSubtle} />
             </TouchableOpacity>
           )}
         </View>
@@ -91,7 +92,7 @@ export function InputBar({
             disabled={disabled || !!pendingAttachment}
             style={styles.attachBtn}
           >
-            <Text style={{ fontSize: 18, color: disabled || pendingAttachment ? palette.borderStrong : palette.textMuted }}>📎</Text>
+            <Icon name="attach" size={20} color={disabled || pendingAttachment ? palette.borderStrong : palette.textMuted} />
           </TouchableOpacity>
         )}
 
@@ -123,7 +124,7 @@ export function InputBar({
             style={styles.emojiBtn}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={{ fontSize: 17 }}>🙂</Text>
+            <Icon name="smile" size={20} color={palette.textMuted} />
           </TouchableOpacity>
           {showEmoji && <EmojiPicker onSelect={insertEmoji} palette={palette} />}
         </View>
@@ -137,7 +138,7 @@ export function InputBar({
           ]}
         >
           <GradientLayer colors={canSend ? gradientColors(theme) : null} />
-          <Text style={{ color: canSend ? palette.onPrimary : palette.textSubtle, fontSize: 16 }}>↑</Text>
+          <Icon name="send" size={18} color={canSend ? palette.onPrimary : palette.textSubtle} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
     </View>

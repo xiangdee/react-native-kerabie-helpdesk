@@ -14,6 +14,7 @@ import { Skeleton } from './Skeleton';
 import { usePalette, withAlpha } from '../theme/palette';
 import type { KerKbArticle, KerTheme } from '../types';
 import { ArticleSheet } from './ArticleSheet';
+import { Icon } from './Icon';
 
 interface Props {
   onClose: () => void;
@@ -46,7 +47,7 @@ export function KnowledgeBaseScreen({ onClose, theme }: Props) {
           <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
         ) : (
           <View style={[styles.thumbPlaceholder, { backgroundColor: withAlpha(primary, 0.12) }]}>
-            <Text style={{ fontSize: 18 }}>📄</Text>
+            <Icon name="article" size={18} color={palette.accent} strokeWidth={1.9} />
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>

@@ -29,6 +29,8 @@ import { socketService } from '../services/socket.service';
 import { AttachmentService } from '../services/attachment.service';
 import { useAttachmentStaging } from '../hooks/useAttachmentStaging';
 import { usePalette } from '../theme/palette';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
+import { Icon } from './Icon';
 
 const DEFAULT_PRE_CHAT_FIELDS: KerEnrichmentField[] = [
   { key: 'name', label: 'Your name', type: 'text', required: false, placeholder: 'Your name' },
@@ -39,10 +41,13 @@ interface Props {
   onClose: () => void;
   theme: KerTheme;
   chatSettings?: KerChatSettings;
+  /** Set when the chat sits inside the tabbed widget: shows a back arrow to Home, and settings live in the Help tab instead. */
+  onBack?: () => void;
 }
 
-export function ChatScreen({ onClose, theme, chatSettings }: Props) {
+export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
   const ctx = useKerAbieContext();
+  const { ref: kbRef, inset: kbInset } = useKeyboardInset();
   const listRef = useRef<FlatList>(null);
   const conversationId = ctx.currentConversation?.id ?? null;
 
@@ -213,9 +218,9 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
     <SafeAreaView style={[styles.root, { backgroundColor: palette.background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
-        {showSettings ? (
-          <TouchableOpacity onPress={() => setShowSettings(false)} style={styles.closeBtn}>
-            <Text style={{ fontSize: 18, color: palette.textMuted }}>‹</Text>
+        {showSettings || onBack ? (
+          <TouchableOpacity onPress={() => (showSettings ? setShowSettings(false) : onBack?.())} style={styles.closeBtn} accessibilityLabel="Back">
+            <Icon name="back" size={20} color={palette.textMuted} />
           </TouchableOpacity>
         ) : (
           <View style={[styles.headerDot, { backgroundColor: ctx.isConnected ? '#22c55e' : palette.textSubtle }]} />
@@ -230,13 +235,13 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
             </Text>
           )}
         </View>
-        {!showSettings && (chatSettings?.layout !== 'single' || chatSettings?.showMenu) && (
-          <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.closeBtn}>
-            <Text style={{ fontSize: 18, color: palette.textMuted }}>⚙</Text>
+        {!onBack && !showSettings && (chatSettings?.layout !== 'single' || chatSettings?.showMenu) && (
+          <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.closeBtn} accessibilityLabel="Settings">
+            <Icon name="user" size={19} color={palette.textMuted} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <Text style={{ fontSize: 20, color: palette.textMuted }}>✕</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close">
+          <Icon name="close" size={20} color={palette.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -252,7 +257,7 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
         </View>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View ref={kbRef} style={{ flex: 1, paddingBottom: kbInset }}>
         {ctx.messages.length === 0 && chatSettings?.guidedGreeting ? (
           // The org's guided flow opens the chat with a question and buttons. It is only on screen here; the server
           // saves it as the conversation's first message once a button is tapped.
@@ -265,7 +270,9 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
           </View>
         ) : ctx.messages.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ fontSize: 28, marginBottom: 12 }}>👋</Text>
+            <View style={{ width: 52, height: 52, borderRadius: 26, marginBottom: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surface }}>
+              <Icon name="chat" size={24} color={palette.accent} />
+            </View>
             <Text style={{ fontSize: 16, fontWeight: '600', color: palette.text, textAlign: 'center', fontFamily: theme.fontFamily }}>
               {personalize(chatSettings?.welcomeMessage ?? 'Hi there! How can we help you today?', ctx.visitorName)}
             </Text>
@@ -316,7 +323,7 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
           <View style={styles.errorBanner}>
             <Text style={styles.errorBannerText}>{attachmentError}</Text>
             <TouchableOpacity onPress={dismissAttachmentError} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.errorBannerDismiss}>✕</Text>
+              <Icon name="close" size={14} color="#b91c1c" />
             </TouchableOpacity>
           </View>
         )}
@@ -357,7 +364,7 @@ export function ChatScreen({ onClose, theme, chatSettings }: Props) {
             </Text>
           </TouchableOpacity>
         )}
-      </KeyboardAvoidingView>
+      </View>
       </>
       )}
 

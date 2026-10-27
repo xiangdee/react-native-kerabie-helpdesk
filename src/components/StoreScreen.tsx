@@ -13,6 +13,7 @@ import { useKerAbieStore } from '../hooks/useKerAbieStore';
 import { Skeleton } from './Skeleton';
 import { usePalette, withAlpha } from '../theme/palette';
 import type { KerStoreProduct, KerTheme } from '../types';
+import { Icon } from './Icon';
 
 interface Props {
   onClose: () => void;
@@ -45,7 +46,7 @@ export function StoreScreen({ onClose, theme }: Props) {
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={styles.thumbImage} />
         ) : (
-          <Text style={{ fontSize: 24 }}>📦</Text>
+          <Icon name="package" size={26} color={palette.textSubtle} />
         )}
       </View>
       <Text style={[styles.name, { color: textColor }]} numberOfLines={1}>{item.name}</Text>

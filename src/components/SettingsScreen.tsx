@@ -5,10 +5,13 @@ import { KerTheme } from '../types';
 import { KerPalette } from '../theme/palette';
 import { ApiService } from '../services/api.service';
 import { KerModal } from './KerModal';
+import { Icon, IconName } from './Icon';
 
 interface Props {
   theme: KerTheme;
   palette: KerPalette;
+  /** Rendered under the options card (the Help tab puts the FAQs here). */
+  children?: React.ReactNode;
 }
 
 type ModalName = 'name' | 'email' | 'erase' | null;
@@ -21,7 +24,7 @@ const DANGER = '#dc2626';
 // Change Name, Download/Email Transcript and GDPR data export/erase — the
 // rows the web widget's HelpScreen.vue has. FAQ is a bigger separate feature
 // and Accessibility is handled by the OS on native, so both are skipped.
-export function SettingsScreen({ theme, palette }: Props) {
+export function SettingsScreen({ theme, palette, children }: Props) {
   const ctx = useKerAbieContext();
   const conversationId = ctx.currentConversation?.id ?? null;
 
@@ -48,7 +51,7 @@ export function SettingsScreen({ theme, palette }: Props) {
     if (!trimmed) return;
     ctx.setUser({ ...ctx.currentUser, name: trimmed });
     setModal(null);
-    flash('name', '✓ Saved!');
+    flash('name', 'Saved');
   }, [ctx, name, flash]);
 
   const downloadTranscript = useCallback(async () => {
@@ -73,7 +76,7 @@ export function SettingsScreen({ theme, palette }: Props) {
     try {
       await ApiService.post(`/public/widget/conversations/${conversationId}/export/email`, { email });
       setModal(null);
-      flash('email', '✓ Sent!');
+      flash('email', 'Sent');
     } catch {
       setModalError("Couldn't send the email — try again");
     } finally {
@@ -128,50 +131,41 @@ export function SettingsScreen({ theme, palette }: Props) {
   );
   const error = !!modalError && <Text style={[styles.rowHint, { color: DANGER, fontFamily: theme.fontFamily }]}>{modalError}</Text>;
 
+  const row = (icon: IconName, label: string, hint: string, onPress: () => void, opts?: { danger?: boolean; first?: boolean }) => (
+    <TouchableOpacity
+      style={[styles.row, !opts?.first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: opts?.danger ? '#fee2e2' : palette.primary }]}>
+        <Icon name={icon} size={16} color={opts?.danger ? DANGER : palette.onPrimary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, opts?.danger ? { color: DANGER, fontFamily: theme.fontFamily } : text]}>{label}</Text>
+        <Text style={[styles.rowHint, muted]}>{hint}</Text>
+      </View>
+      <Icon name="forward" size={16} color={palette.textSubtle} />
+    </TouchableOpacity>
+  );
+
   return (
-    <ScrollView style={[styles.root, { backgroundColor: palette.background }]} contentContainerStyle={{ padding: 16, gap: 4 }}>
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => {
+    <ScrollView style={[styles.root, { backgroundColor: palette.surface }]} contentContainerStyle={{ padding: 14, paddingBottom: 24 }}>
+      <Text style={[styles.sectionLabel, muted]}>Options</Text>
+      <View style={[styles.card, { backgroundColor: palette.background }]}>
+        {row('user', 'Change Name', notice.name || ctx.currentUser?.name || 'Set the name shown to our team', () => {
           setName(ctx.currentUser?.name ?? '');
           openModal('name');
-        }}
-      >
-        <Text style={[styles.rowLabel, text]}>Change Name</Text>
-        <Text style={[styles.rowHint, muted]}>{notice.name || ctx.currentUser?.name || 'Set the name shown to our team'}</Text>
-      </TouchableOpacity>
+        }, { first: true })}
+        {!!conversationId && row('download', 'Download Transcript', notice.download || 'Share a copy of your chat history', downloadTranscript)}
+        {!!conversationId && row('mail', 'Email Transcript', notice.email || 'Send transcript to your email', () => {
+          setEmailInput(ctx.currentUser?.email ?? '');
+          openModal('email');
+        })}
+        {row('shield', 'Download my data', notice.data || 'Get a copy of the data we hold about you', downloadMyData)}
+        {row('trash', 'Delete my data', 'Permanently erase your conversations and contact details', () => openModal('erase'), { danger: true })}
+      </View>
 
-      {!!conversationId && (
-        <>
-          <TouchableOpacity style={styles.row} onPress={downloadTranscript}>
-            <Text style={[styles.rowLabel, text]}>Download Transcript</Text>
-            <Text style={[styles.rowHint, muted]}>{notice.download || 'Share a copy of your chat history'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => {
-              setEmailInput(ctx.currentUser?.email ?? '');
-              openModal('email');
-            }}
-          >
-            <Text style={[styles.rowLabel, text]}>Email Transcript</Text>
-            <Text style={[styles.rowHint, muted]}>{notice.email || 'Send transcript to your email'}</Text>
-          </TouchableOpacity>
-        </>
-      )}
-
-      <View style={[styles.divider, { backgroundColor: palette.border }]} />
-
-      <TouchableOpacity style={styles.row} onPress={downloadMyData}>
-        <Text style={[styles.rowLabel, text]}>Download my data</Text>
-        <Text style={[styles.rowHint, muted]}>{notice.data || 'Get a copy of the data we hold about you'}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.row} onPress={() => openModal('erase')}>
-        <Text style={[styles.rowLabel, { color: DANGER, fontFamily: theme.fontFamily }]}>Delete my data</Text>
-        <Text style={[styles.rowHint, muted]}>Permanently erase your conversations and contact details</Text>
-      </TouchableOpacity>
+      {children}
 
       <KerModal
         visible={modal === 'name'}
@@ -239,8 +233,10 @@ const styles = StyleSheet.create({
   input: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   btn: { borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center' },
   btnText: { fontSize: 14, fontWeight: '600' },
-  divider: { height: StyleSheet.hairlineWidth, marginVertical: 8 },
-  row: { paddingVertical: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginHorizontal: 4, marginBottom: 10 },
+  card: { borderRadius: 16, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  rowIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 14, fontWeight: '600' },
   rowHint: { fontSize: 12.5, marginTop: 2 },
 });

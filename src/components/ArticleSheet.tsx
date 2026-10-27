@@ -15,6 +15,7 @@ import { ApiService } from '../services/api.service';
 import { KerPalette, withAlpha } from '../theme/palette';
 import type { KerTheme } from '../types';
 import { ArticleFeedback } from './ArticleFeedback';
+import { Icon } from './Icon';
 
 interface Props {
   visible: boolean;
@@ -98,7 +99,7 @@ export function ArticleSheet({ visible, articleId, title, content, imageUrl, onC
               accessibilityLabel="Close"
               style={[styles.closeBtn, { backgroundColor: withAlpha(palette.text, 0.08) }]}
             >
-              <Text style={{ color: palette.textMuted, fontSize: 14 }}>✕</Text>
+              <Icon name="close" size={16} color={palette.textMuted} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.body}>

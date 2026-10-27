@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Icon } from './Icon';
 import { ActivityIndicator, Animated, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { GradientLayer, gradientColors } from './GradientLayer';
@@ -60,24 +61,24 @@ export function KerAbieSearchBar({ style }: Props) {
       {attachmentError && (
         <View style={[styles.note, { backgroundColor: palette.background, borderColor: '#fca5a5' }]}>
           <Text style={[styles.noteText, { color: '#dc2626' }]} numberOfLines={2}>{attachmentError}</Text>
-          <TouchableOpacity onPress={dismissAttachmentError}><Text style={{ color: palette.textMuted }}>✕</Text></TouchableOpacity>
+          <TouchableOpacity onPress={dismissAttachmentError}><Icon name="close" size={16} color={palette.textMuted} /></TouchableOpacity>
         </View>
       )}
       {showChooser && (
         <View style={[styles.note, { backgroundColor: palette.background, borderColor: palette.border }]}>
-          <TouchableOpacity onPress={() => pick('photo')} style={styles.choice}><Text style={{ color: palette.text }}>🖼  Photo</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => pick('document')} style={styles.choice}><Text style={{ color: palette.text }}>📄  Document</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => pick('photo')} style={styles.choice}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="image" size={18} color={palette.text} /><Text style={{ color: palette.text }}>Photo</Text></View></TouchableOpacity>
+          <TouchableOpacity onPress={() => pick('document')} style={styles.choice}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="article" size={18} color={palette.text} /><Text style={{ color: palette.text }}>Document</Text></View></TouchableOpacity>
         </View>
       )}
       {pendingAttachment && (
         <View style={[styles.note, { backgroundColor: palette.background, borderColor: palette.border }]}>
           {pendingAttachment.isImage
             ? <Image source={{ uri: pendingAttachment.uri }} style={styles.thumb} />
-            : <Text style={{ fontSize: 18 }}>📎</Text>}
+            : <Icon name="attach" size={20} color={palette.textMuted} />}
           <Text style={[styles.noteText, { color: palette.text }]} numberOfLines={1}>{pendingAttachment.name}</Text>
           {isUploading && <ActivityIndicator size="small" color={palette.textMuted} />}
           <TouchableOpacity onPress={removeAttachment} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ color: palette.textMuted }}>✕</Text>
+            <Icon name="close" size={16} color={palette.textMuted} />
           </TouchableOpacity>
         </View>
       )}
@@ -92,7 +93,7 @@ export function KerAbieSearchBar({ style }: Props) {
         style={[styles.attach, pendingAttachment ? { opacity: 0.4 } : null]}
         accessibilityLabel="Send attachment"
       >
-        <Text style={{ fontSize: 18, color: palette.textMuted }}>📎</Text>
+        <Icon name="attach" size={20} color={palette.textMuted} />
       </TouchableOpacity>
       <TextInput
         value={text}
@@ -107,7 +108,7 @@ export function KerAbieSearchBar({ style }: Props) {
         <View style={[StyleSheet.absoluteFill, styles.sendBg, { backgroundColor: config.theme.primaryColor ?? DEFAULT_PRIMARY_COLOR }]} pointerEvents="none">
           <GradientLayer colors={gradientColors(config.theme)} />
         </View>
-        <Text style={styles.arrow}>→</Text>
+        <Icon name="arrowRight" size={18} color={palette.onPrimary} />
       </TouchableOpacity>
     </View>
   );

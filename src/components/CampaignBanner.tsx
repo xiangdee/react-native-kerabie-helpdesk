@@ -4,6 +4,7 @@ import type { BubblePosition, KerTheme } from '../types';
 import type { KerCampaign } from '../utils/campaignRules';
 import { GradientLayer, gradientColors } from './GradientLayer';
 import { DEFAULT_PRIMARY_COLOR } from '../theme/palette';
+import { Icon } from './Icon';
 
 interface Props {
   campaign: KerCampaign;
@@ -36,7 +37,7 @@ export function CampaignBanner({ campaign, theme, name, position, onOpen, onCta,
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Dismiss"
         >
-          <Text style={[styles.closeText, campaign.imageUrl ? { color: '#fff', fontSize: 11 } : null]}>✕</Text>
+          <Icon name="close" size={14} color={campaign.imageUrl ? '#fff' : '#94a3b8'} />
         </TouchableOpacity>
         <View style={styles.body}>
         <TouchableOpacity activeOpacity={0.8} onPress={onOpen} style={styles.row}>

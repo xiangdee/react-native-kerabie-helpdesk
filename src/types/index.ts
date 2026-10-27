@@ -211,6 +211,16 @@ export interface KerChatSettings {
   /** 'single' = one continuous chat; the header menu (settings) only shows when showMenu is on. Mirrors ChatWidget.layout/showMenu. */
   layout?: 'full' | 'single';
   showMenu?: boolean;
+  /** The org's logo, shown in the Home header. */
+  logoUrl?: string | null;
+  /** Show the Home / Chat / Help tab bar even in the 'single' layout. Mirrors ChatWidget.showNavigation. */
+  showNavigation?: boolean;
+  /** Home header greeting. `greetingText` falls back to the default; `{{name}}` is the visitor's first name. */
+  showGreeting?: boolean;
+  greetingText?: string | null;
+  /** The "We reply in minutes" chip in the Home header. */
+  showStatusChip?: boolean;
+  statusChipText?: string | null;
   /** 'searchbar' = render <KerAbieSearchBar /> instead of the floating bubble. Mirrors ChatWidget.launcherType. */
   launcherType?: 'bubble' | 'searchbar';
   searchbarPlaceholder?: string;

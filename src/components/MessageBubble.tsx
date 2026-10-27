@@ -4,6 +4,7 @@ import { KerMessage, KerTheme } from '../types';
 import { GradientLayer, bubbleRadius, gradientColors } from './GradientLayer';
 import { contrastText, usePalette } from '../theme/palette';
 import { ArticleSheet } from './ArticleSheet';
+import { Icon } from './Icon';
 
 interface Props {
   message: KerMessage;
@@ -97,8 +98,9 @@ function CitationChip({ id, title, palette, textColor, theme }: { id: number; ti
         onPress={() => setOpen(true)}
         style={[styles.citationChip, { borderColor: palette.border, backgroundColor: palette.background }]}
       >
-        <Text style={[styles.citationChipText, { color: textColor }]} numberOfLines={1}>📄 {title}</Text>
-        <Text style={{ color: palette.textMuted, fontSize: 13 }}>›</Text>
+        <Icon name="article" size={14} color={palette.accent} />
+        <Text style={[styles.citationChipText, { color: textColor }]} numberOfLines={1}>{title}</Text>
+        <Icon name="forward" size={14} color={palette.textMuted} />
       </TouchableOpacity>
       {open && <ArticleSheet visible articleId={id} title={title} onClose={() => setOpen(false)} theme={theme} palette={palette} />}
     </View>
@@ -158,7 +160,7 @@ export function MessageBubble({ message, theme, onRetry, onPressImage }: Props) 
             <Image source={{ uri: theme.chatbotAvatarUrl }} style={[styles.avatarImg, { backgroundColor: palette.surface }]} />
           ) : (
             <View style={[styles.avatar, { backgroundColor: '#6366f1' }]}>
-              <Text style={styles.avatarText}>🤖</Text>
+              <Icon name="sparkle" size={16} color="#fff" />
             </View>
           )
         ) : message.senderAvatar && !avatarLoadFailed ? (
@@ -216,8 +218,9 @@ export function MessageBubble({ message, theme, onRetry, onPressImage }: Props) 
                 onPress={() => Linking.openURL(message.metadata!.url!)}
                 style={styles.attachmentFile}
               >
+                <Icon name="attach" size={14} color={isVisitor ? onBubble : palette.text} />
                 <Text style={[styles.attachmentFileName, { color: isVisitor ? onBubble : palette.text }]}>
-                  📎 {message.metadata.fileName ?? 'File'}
+                  {message.metadata.fileName ?? 'File'}
                 </Text>
               </TouchableOpacity>
             )}

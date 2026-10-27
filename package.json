@@ -1,6 +1,6 @@
 {
   "name": "react-native-kerabie-helpdesk",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Embed the Kerabie help desk into any React Native / Expo app",
   "main": "src/index.ts",
   "types": "src/index.ts",

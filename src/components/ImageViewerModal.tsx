@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dimensions, Image, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Icon } from './Icon';
 
 interface Props {
   uri: string | null;
@@ -15,7 +16,7 @@ export function ImageViewerModal({ uri, onClose }: Props) {
     <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.closeText}>✕</Text>
+          <Icon name="close" size={22} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.imageWrap} activeOpacity={1} onPress={onClose}>
           {uri && (

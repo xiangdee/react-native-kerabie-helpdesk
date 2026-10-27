@@ -22,7 +22,7 @@ import { tonalEnd } from '../theme/tonalEnd';
 import { StorageService } from '../services/storage.service';
 import { NotificationService, expoNotificationAdapter } from '../services/notification.service';
 import { KerAbieDeepLinkService } from '../services/deeplink.service';
-import { ChatScreen } from '../components/ChatScreen';
+import { WidgetShell } from '../components/WidgetShell';
 import { CampaignBanner } from '../components/CampaignBanner';
 import { useCampaignTriggers } from '../hooks/useCampaignTriggers';
 import { DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from '../theme/palette';
@@ -211,6 +211,12 @@ export function KerAbieProvider({
       ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
       ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
       ...(s.layout ? { layout: s.layout } : {}),
+      logoUrl: s.logoUrl ?? null,
+      ...(typeof s.showNavigation === 'boolean' ? { showNavigation: s.showNavigation } : {}),
+      ...(typeof s.showGreeting === 'boolean' ? { showGreeting: s.showGreeting } : {}),
+      greetingText: s.greetingText ?? null,
+      ...(typeof s.showStatusChip === 'boolean' ? { showStatusChip: s.showStatusChip } : {}),
+      statusChipText: s.statusChipText ?? null,
       ...(typeof s.showMenu === 'boolean' ? { showMenu: s.showMenu } : {}),
       ...(s.launcherType ? { launcherType: s.launcherType } : {}),
       ...(s.searchbarPlaceholder ? { searchbarPlaceholder: s.searchbarPlaceholder } : {}),
@@ -662,12 +668,12 @@ export function KerAbieProvider({
           presentationStyle="pageSheet"
           onRequestClose={close}
         >
-          <ChatScreen onClose={close} theme={theme} chatSettings={mergedChatSettings} />
+          <WidgetShell onClose={close} theme={theme} chatSettings={mergedChatSettings} />
         </Modal>
       )}
       {openMode !== 'modal' && !hideFloatingButton && isOpen && (
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, top: 0, pointerEvents: 'box-none' }}>
-          <ChatScreen onClose={close} theme={theme} chatSettings={mergedChatSettings} />
+          <WidgetShell onClose={close} theme={theme} chatSettings={mergedChatSettings} />
         </View>
       )}
     </KerAbieContext.Provider>
