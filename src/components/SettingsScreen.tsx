@@ -14,16 +14,16 @@ interface Props {
   children?: React.ReactNode;
 }
 
-type ModalName = 'name' | 'email' | 'erase' | null;
-type Notice = 'name' | 'download' | 'email' | 'data';
+type ModalName = 'email' | 'erase' | null;
+type Notice = 'download' | 'email' | 'data';
 
 const NOTICE_MS = 3000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DANGER = '#dc2626';
 
-// Change Name, Download/Email Transcript and GDPR data export/erase — the
-// rows the web widget's HelpScreen.vue has. FAQ is a bigger separate feature
-// and Accessibility is handled by the OS on native, so both are skipped.
+// Download/Email Transcript and GDPR data export/erase — the rows the web widget's HelpScreen.vue has. Change
+// name is left out: the app already identifies the visitor (setUser), and anonymous visitors give their name in
+// the pre-chat form. Accessibility is handled by the OS on native.
 export function SettingsScreen({ theme, palette, children }: Props) {
   const ctx = useKerAbieContext();
   const conversationId = ctx.currentConversation?.id ?? null;
@@ -31,7 +31,6 @@ export function SettingsScreen({ theme, palette, children }: Props) {
   const [modal, setModal] = useState<ModalName>(null);
   const [busy, setBusy] = useState(false);
   const [modalError, setModalError] = useState('');
-  const [name, setName] = useState('');
   const [emailInput, setEmailInput] = useState('');
 
   // Short-lived status text under each row's title.
@@ -45,14 +44,6 @@ export function SettingsScreen({ theme, palette, children }: Props) {
     setModalError('');
     setModal(next);
   };
-
-  const saveName = useCallback(() => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    ctx.setUser({ ...ctx.currentUser, name: trimmed });
-    setModal(null);
-    flash('name', 'Saved');
-  }, [ctx, name, flash]);
 
   const downloadTranscript = useCallback(async () => {
     if (!conversationId) return flash('download', 'No conversation to download yet');
@@ -152,41 +143,16 @@ export function SettingsScreen({ theme, palette, children }: Props) {
     <ScrollView style={[styles.root, { backgroundColor: palette.surface }]} contentContainerStyle={{ padding: 14, paddingBottom: 24 }}>
       <Text style={[styles.sectionLabel, muted]}>Options</Text>
       <View style={[styles.card, { backgroundColor: palette.background }]}>
-        {row('user', 'Change Name', notice.name || ctx.currentUser?.name || 'Set the name shown to our team', () => {
-          setName(ctx.currentUser?.name ?? '');
-          openModal('name');
-        }, { first: true })}
-        {!!conversationId && row('download', 'Download Transcript', notice.download || 'Share a copy of your chat history', downloadTranscript)}
+        {!!conversationId && row('download', 'Download Transcript', notice.download || 'Share a copy of your chat history', downloadTranscript, { first: true })}
         {!!conversationId && row('mail', 'Email Transcript', notice.email || 'Send transcript to your email', () => {
           setEmailInput(ctx.currentUser?.email ?? '');
           openModal('email');
         })}
-        {row('shield', 'Download my data', notice.data || 'Get a copy of the data we hold about you', downloadMyData)}
+        {row('shield', 'Download my data', notice.data || 'Get a copy of the data we hold about you', downloadMyData, { first: !conversationId })}
         {row('trash', 'Delete my data', 'Permanently erase your conversations and contact details', () => openModal('erase'), { danger: true })}
       </View>
 
       {children}
-
-      <KerModal
-        visible={modal === 'name'}
-        title="Change name"
-        onClose={() => setModal(null)}
-        theme={theme}
-        palette={palette}
-        footer={<>{cancelBtn}{primaryBtn('Save', saveName, !name.trim())}</>}
-      >
-        <Text style={[styles.rowHint, muted]}>This is the name our team sees in your conversations.</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Your name"
-          placeholderTextColor={palette.textSubtle}
-          maxLength={80}
-          autoFocus
-          onSubmitEditing={saveName}
-          style={inputStyle}
-        />
-      </KerModal>
 
       <KerModal
         visible={modal === 'email'}

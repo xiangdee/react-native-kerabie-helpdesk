@@ -431,7 +431,7 @@ Opening the chat (the floating button, `open()`, a campaign or a notification ta
 | --- | ----------- |
 | **Home** | Header with logo, status chip and greeting, search, featured products (tap one for its sheet and a link to the store), suggested articles and an "Ask our AI / Chat with us" card. |
 | **Chat** | The `full` layout lists the visitor's conversations with a **New chat** button; the `single` layout opens one continuous chat with the recent history. |
-| **Help** | Change name, download or email a transcript, download or delete the visitor's data, and the most useful articles as FAQs. |
+| **Help** | Download or email a transcript, download or delete the visitor's data, and the most useful articles as FAQs. |
 | **Tickets** | Only when tickets are on for the widget. |
 
 A tapped push notification or `<your-scheme>://conversation/:id` link opens the widget on that conversation. With `layout: "single"` the tab bar is hidden unless `showNavigation` is on.
