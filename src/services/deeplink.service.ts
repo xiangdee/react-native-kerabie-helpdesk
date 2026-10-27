@@ -1,3 +1,4 @@
+import { Linking } from 'react-native';
 /**
  * Deep link handler for Kerabie push notification taps.
  *
@@ -43,9 +44,6 @@ export const KerAbieDeepLinkService = {
     this._handlers = handlers;
 
     try {
-      const { Linking } = await import('react-native').catch(() => null) ?? {};
-      if (!Linking) return;
-
       // Handle URL that launched the app cold (tapped notification while app was closed)
       const initial = await Linking.getInitialURL().catch(() => null);
       if (initial) this._handleUrl(initial);
@@ -56,11 +54,7 @@ export const KerAbieDeepLinkService = {
   },
 
   destroy(): void {
-    try {
-      import('react-native').then(({ Linking }) => {
-        // React Native Linking.removeEventListener was deprecated; listener is cleaned up on unmount
-      }).catch(() => {});
-    } catch {}
+    // Linking listeners are cleaned up on unmount (removeEventListener is deprecated).
     this._handlers = null;
   },
 

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { ApiService } from './api.service';
 import type { KerNotificationAdapter } from '../types';
 
@@ -61,11 +62,8 @@ export const NotificationService = {
    */
   async registerAndroidChannels(channels?: KerAndroidChannel[]): Promise<void> {
     try {
-      const [Notifications, RN] = await Promise.all([
-        import('expo-notifications').catch(() => null),
-        import('react-native').catch(() => null),
-      ]);
-      if (!Notifications || RN?.Platform?.OS !== 'android') return;
+      const Notifications = await import('expo-notifications').catch(() => null);
+      if (!Notifications || Platform.OS !== 'android') return;
 
       const channelsToRegister = channels ?? DEFAULT_CHANNELS;
       await Promise.all(
