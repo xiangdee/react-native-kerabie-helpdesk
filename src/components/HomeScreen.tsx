@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { useKerAbieKnowledgeBase } from '../hooks/useKerAbieKnowledgeBase';
 import { useKerAbieStore } from '../hooks/useKerAbieStore';
 import { personalize } from '../utils/personalize';
-import type { KerChatSettings, KerKbArticle, KerTheme } from '../types';
+import type { KerChatSettings, KerKbArticle, KerStoreProduct, KerTheme } from '../types';
+import { formatPrice } from '../utils/formatPrice';
+import { ProductSheet } from './ProductSheet';
 import type { KerPalette } from '../theme/palette';
 import { gradientColors, GradientLayer } from './GradientLayer';
 import { Icon } from './Icon';
@@ -19,14 +21,6 @@ interface Props {
   onChat: () => void;
 }
 
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${currency} ${amount}`;
-  }
-}
-
 // The widget's landing screen — same layout as the web widget's HomeScreen.vue: branded header with the
 // greeting, a search box, featured products, suggested articles and the "Ask our AI / Chat with us" card.
 export function HomeScreen({ theme, palette, chatSettings, onClose, onChat }: Props) {
@@ -35,12 +29,13 @@ export function HomeScreen({ theme, palette, chatSettings, onClose, onChat }: Pr
   const { products, storeUrl } = useKerAbieStore();
   const [query, setQuery] = useState('');
   const [openArticle, setOpenArticle] = useState<KerKbArticle | null>(null);
+  const [openProduct, setOpenProduct] = useState<KerStoreProduct | null>(null);
 
   const font = theme.fontFamily;
   const chatbot = chatSettings?.chatbotEnabled ?? false;
   const agentsOnline = ctx.onlineAgents > 0;
   const showGreeting = chatSettings?.showGreeting !== false;
-  const greeting = personalize(chatSettings?.greetingText || 'Hello there\nGot questions?', ctx.visitorName);
+  const greeting = personalize(chatSettings?.greetingText || 'Hello there \u{1F44B}\nGot questions?', ctx.visitorName);
   const statusText = chatSettings?.statusChipText || (chatbot ? 'Instant answers' : agentsOnline ? 'We reply in minutes' : "We're offline");
   const available = agentsOnline || chatbot;
   const name = chatSettings?.name ?? ctx.appName ?? 'Support';
@@ -92,7 +87,7 @@ export function HomeScreen({ theme, palette, chatSettings, onClose, onChat }: Pr
                 <Text style={[styles.sectionTitle, { color: palette.textMuted, fontFamily: font }]}>Featured products</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingTop: 8 }}>
                   {products.map((p) => (
-                    <TouchableOpacity key={p.id} style={styles.product} onPress={() => storeUrl && Linking.openURL(storeUrl).catch(() => {})} activeOpacity={0.8}>
+                    <TouchableOpacity key={p.id} style={styles.product} onPress={() => setOpenProduct(p)} activeOpacity={0.8}>
                       <View style={[styles.productImage, { backgroundColor: palette.surface }]}>
                         {p.imageUrl ? <Image source={{ uri: p.imageUrl }} style={styles.productImg} /> : <Icon name="package" size={28} color={palette.textSubtle} />}
                       </View>
@@ -153,6 +148,8 @@ export function HomeScreen({ theme, palette, chatSettings, onClose, onChat }: Pr
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {openProduct && <ProductSheet product={openProduct} storeUrl={storeUrl} onClose={() => setOpenProduct(null)} theme={theme} palette={palette} />}
 
       {openArticle && (
         <ArticleSheet

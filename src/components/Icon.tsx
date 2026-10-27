@@ -6,7 +6,7 @@ import { Text, View, ViewStyle } from 'react-native';
 export type IconName =
   | 'home' | 'chat' | 'help' | 'tickets' | 'search' | 'close' | 'back' | 'forward' | 'article' | 'sparkle'
   | 'user' | 'bell' | 'download' | 'mail' | 'shield' | 'trash' | 'check' | 'package' | 'attach' | 'smile'
-  | 'send' | 'image' | 'arrowRight';
+  | 'send' | 'image' | 'arrowRight' | 'plus';
 
 interface Props {
   name: IconName;
@@ -64,6 +64,9 @@ export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: Props) {
   switch (name) {
     case 'close':
       parts = [bar(12, 12, 17, 45), bar(12, 12, 17, -45)];
+      break;
+    case 'plus':
+      parts = [bar(12, 12, 14), bar(12, 12, 14, 0, true)];
       break;
     case 'back':
       parts = [chevron(13.5, 12, 9, L)];

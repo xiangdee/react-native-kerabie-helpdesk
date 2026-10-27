@@ -33,6 +33,7 @@ export type {
   KerMessage,
   KerAttachment,
   KerConversation,
+  KerConversationSummary,
   KerNotification,
   KerNotificationConfig,
   KerNotificationAdapter,

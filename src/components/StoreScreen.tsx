@@ -14,18 +14,11 @@ import { Skeleton } from './Skeleton';
 import { usePalette, withAlpha } from '../theme/palette';
 import type { KerStoreProduct, KerTheme } from '../types';
 import { Icon } from './Icon';
+import { formatPrice } from '../utils/formatPrice';
 
 interface Props {
   onClose: () => void;
   theme: KerTheme;
-}
-
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${currency} ${amount}`;
-  }
 }
 
 export function StoreScreen({ onClose, theme }: Props) {

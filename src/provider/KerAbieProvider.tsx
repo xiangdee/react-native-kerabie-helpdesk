@@ -6,7 +6,7 @@ import {
   KerAttachment,
   KerChatContext,
   KerChatSettings,
-  KerConversation,
+  KerConversation, KerConversationSummary,
   KerLinkPreview,
   KerGuidedGreeting,
   KerMessage,
@@ -97,7 +97,8 @@ export function KerAbieProvider({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [sessionId, setSessionId] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<KerUser | null>(initialUser ?? null);
-  const [conversations, setConversations] = useState<KerConversation[]>([]);
+  const [conversations, setConversations] = useState<KerConversationSummary[]>([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversation, setCurrentConversation] = useState<KerConversation | null>(null);
   const [messages, setMessages] = useState<KerMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -139,6 +140,7 @@ export function KerAbieProvider({
   // with the id the server assigned (read off that message's echo), so any
   // message sent meanwhile lands in the same conversation instead of
   // creating another one.
+  const conversationsFresh = useRef(false);
   const draftCreation = useRef<{ tempId: string; promise: Promise<number | null>; resolve: (id: number | null) => void } | null>(null);
 
   // Open the chat. With openMode 'push' the host app's own navigator shows it: the SDK calls onNavigate and the app
@@ -211,6 +213,7 @@ export function KerAbieProvider({
       ...(typeof s.typingIndicator === 'boolean' ? { typingIndicator: s.typingIndicator } : {}),
       ...(typeof s.chatbotEnabled === 'boolean' ? { chatbotEnabled: s.chatbotEnabled } : {}),
       ...(s.layout ? { layout: s.layout } : {}),
+      ...(typeof s.chatHistoryEnabled === 'boolean' ? { chatHistoryEnabled: s.chatHistoryEnabled } : {}),
       logoUrl: s.logoUrl ?? null,
       ...(typeof s.showNavigation === 'boolean' ? { showNavigation: s.showNavigation } : {}),
       ...(typeof s.showGreeting === 'boolean' ? { showGreeting: s.showGreeting } : {}),
@@ -254,6 +257,12 @@ export function KerAbieProvider({
         const history = await ApiService.get<{ conversationId: number | null; messages: any[] }>('/public/widget/messages');
         if (history.messages?.length) setMessages(history.messages.map(mapIncomingMessage));
       } catch {}
+
+      // The conversation list: remembered copy first, then the server's answer. A failed request keeps what is shown.
+      StorageService.get<KerConversationSummary[]>('cache:conversations:' + widgetKey)
+        .then((remembered) => { if (remembered && !conversationsFresh.current) { setConversations(remembered); setConversationsLoaded(true); } })
+        .catch(() => {});
+      refreshConversations();
 
       // Resolve orgId from widget key before connecting socket
       let orgId = 0;
@@ -304,6 +313,7 @@ export function KerAbieProvider({
         // the history again and merge in the replies we missed (the visitor's own messages are skipped:
         // a send still awaiting its ack has a temp id here and would be added a second time).
         if (!hasConnectedOnce.current) { hasConnectedOnce.current = true; return; }
+        refreshConversations();
         ApiService.get<{ messages: any[] }>('/public/widget/messages')
           .then((history) => {
             const known = new Set(messagesRef.current.map((m) => m.id));
@@ -417,6 +427,41 @@ export function KerAbieProvider({
   useEffect(() => {
     if (isOpen) setUnreadCount(0);
   }, [isOpen]);
+
+  const refreshConversations = useCallback(async () => {
+    try {
+      const res = await ApiService.get<{ conversations?: KerConversationSummary[] }>('/public/widget/conversations');
+      const list = res.conversations ?? [];
+      conversationsFresh.current = true;
+      setConversations(list);
+      StorageService.set('cache:conversations:' + widgetKey, list).catch(() => {});
+    } catch {
+      // keep the remembered list on error
+    } finally {
+      setConversationsLoaded(true);
+    }
+  }, [widgetKey]);
+
+  const startNewConversation = useCallback(() => {
+    draftCreation.current = null;
+    setCurrentConversation(null);
+    setMessages([]);
+    setIsTyping(false);
+    setIsAiTyping(false);
+  }, []);
+
+  const openConversation = useCallback(async (id: number) => {
+    draftCreation.current = null;
+    setCurrentConversation((prev) => (prev?.id === id ? prev : newConversationState(id)));
+    setIsTyping(false);
+    setIsAiTyping(false);
+    try {
+      const history = await ApiService.get<{ messages: any[] }>('/public/widget/messages', { conversationId: String(id) });
+      setMessages((history.messages ?? []).map(mapIncomingMessage));
+    } catch {
+      // keep what is on screen; the list row stays tappable to retry
+    }
+  }, []);
 
   const open = useCallback(() => {
     setIsOpen(true);
@@ -596,6 +641,10 @@ export function KerAbieProvider({
     toggle,
     unreadCount,
     conversations,
+    conversationsLoaded,
+    startNewConversation,
+    openConversation,
+    refreshConversations,
     currentConversation,
     messages,
     sendMessage,

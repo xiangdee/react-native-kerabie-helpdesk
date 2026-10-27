@@ -224,7 +224,11 @@ const {
   close,            // () => void    — close the chat
   toggle,           // () => void    — toggle open/close
   unreadCount,      // number        — messages received while chat was closed
-  conversations,    // KerConversation[]  — visitor's conversation list
+  conversations,    // KerConversationSummary[]  — visitor's conversation list (newest first)
+  conversationsLoaded,  // boolean     — the list has been loaded at least once
+  startNewConversation, // () => void  — switch to an empty draft chat
+  openConversation,     // (id: number) => Promise<void>  — switch to a listed chat and load its messages
+  refreshConversations, // () => Promise<void>  — reload the list
   currentConversation,  // KerConversation | null
   messages,         // KerMessage[]  — messages in the active conversation
   sendMessage,      // (body: string, attachments?: KerAttachment[]) => Promise<void>
@@ -405,6 +409,7 @@ import type {
   KerMessage,
   KerAttachment,
   KerConversation,
+  KerConversationSummary,
   KerNotification,
   OpenMode,          // "modal" | "sheet" | "push"
   BubblePosition,    // "bottom-right" | "bottom-left" | "top-right" | "top-left"
@@ -424,6 +429,18 @@ import type {
 | `senderAvatar` | `string` | Avatar URL. |
 | `attachments` | `KerAttachment[]` | File/image attachments. |
 | `status` | `"sent" \| "delivered" \| "read" \| "failed"` | Delivery status (visitor messages). |
+
+#### `KerConversationSummary`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | `number` | Conversation ID. |
+| `name` | `string` | Who the visitor talked to. |
+| `avatar` | `string \| null` | Avatar URL. |
+| `lastMessage` | `string` | Preview of the latest message. |
+| `lastMessageTime` | `string` | ISO timestamp. |
+| `unreadCount` | `number` | Unread messages. |
+| `isOnline` | `boolean` | The agent is online now. |
 
 #### `KerConversation`
 

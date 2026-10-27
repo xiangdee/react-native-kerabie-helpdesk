@@ -130,6 +130,17 @@ export interface KerConversation {
   updatedAt: string;
 }
 
+/** One row of the visitor's conversation list (the Chat tab), as the server summarises it. */
+export interface KerConversationSummary {
+  id: number;
+  name: string;
+  avatar?: string | null;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  isOnline?: boolean;
+}
+
 export type KerTicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 export type KerTicketStatus = 'WAITING' | 'ACTIVE' | 'RESOLVED' | 'CLOSED';
 
@@ -208,6 +219,8 @@ export interface KerChatSettings {
   enableVoiceMessages?: boolean;
   /** Whether the AI chatbot can reply when no agent is online — mirrors ChatWidget.chatbotEnabled. Gates the offline pre-chat capture form in ChatScreen. */
   chatbotEnabled?: boolean;
+  /** Off hides past conversations (the Chat tab then offers only a new chat). Mirrors ChatWidget.chatHistoryEnabled. */
+  chatHistoryEnabled?: boolean;
   /** 'single' = one continuous chat; the header menu (settings) only shows when showMenu is on. Mirrors ChatWidget.layout/showMenu. */
   layout?: 'full' | 'single';
   showMenu?: boolean;
@@ -273,8 +286,17 @@ export interface KerAbieContextValue {
   close: () => void;
   toggle: () => void;
   unreadCount: number;
-  conversations: KerConversation[];
+  /** The visitor's past and open conversations, newest first. Empty when the org turned chat history off. */
+  conversations: KerConversationSummary[];
+  /** False until the first answer (or remembered list) is in, so screens show a skeleton rather than "no chats". */
+  conversationsLoaded: boolean;
   currentConversation: KerConversation | null;
+  /** Switches the chat to an empty draft; the conversation is only created once the first message is sent. */
+  startNewConversation: () => void;
+  /** Switches the chat to one of `conversations` and loads its messages. */
+  openConversation: (id: number) => Promise<void>;
+  /** Pulls the conversation list again. */
+  refreshConversations: () => Promise<void>;
   /** The identified user's name, used to fill {{name}} in the welcome message. */
   visitorName: string;
   messages: KerMessage[];
