@@ -300,6 +300,8 @@ export interface KerAbieContextValue {
   openConversation: (id: number) => Promise<void>;
   /** Pulls the conversation list again. */
   refreshConversations: () => Promise<void>;
+  /** The visitor is looking at this conversation: what the team said so far no longer counts as unread. */
+  markConversationRead: (id: number) => void;
   /** The identified user's name, used to fill {{name}} in the welcome message. */
   visitorName: string;
   messages: KerMessage[];

@@ -237,6 +237,7 @@ const {
   startNewConversation, // () => void  — switch to an empty draft chat
   openConversation,     // (id: number) => Promise<void>  — switch to a listed chat and load its messages
   refreshConversations, // () => Promise<void>  — reload the list
+  markConversationRead, // (id: number) => void  — the visitor is viewing it: earlier replies stop counting as unread
   currentConversation,  // KerConversation | null
   messages,         // KerMessage[]  — messages in the active conversation
   sendMessage,      // (body: string, attachments?: KerAttachment[]) => Promise<void>

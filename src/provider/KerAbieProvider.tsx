@@ -450,6 +450,12 @@ export function KerAbieProvider({
     }
   }, [widgetKey]);
 
+  const markConversationRead = useCallback((id: number) => {
+    // Fire and forget: the badge is a nicety and must never get in the way of reading.
+    ApiService.post(`/public/widget/conversations/${id}/read`, {}).catch(() => {});
+    setConversations((prev) => prev.map((c) => (c.id === id && c.unreadCount > 0 ? { ...c, unreadCount: 0 } : c)));
+  }, []);
+
   const startNewConversation = useCallback(() => {
     draftCreation.current = null;
     setCurrentConversation(null);
@@ -655,6 +661,7 @@ export function KerAbieProvider({
     startNewConversation,
     openConversation,
     refreshConversations,
+    markConversationRead,
     currentConversation,
     messages,
     sendMessage,

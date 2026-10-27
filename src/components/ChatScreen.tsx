@@ -51,6 +51,13 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
   const listRef = useRef<FlatList>(null);
   const conversationId = ctx.currentConversation?.id ?? null;
 
+  // While this chat is on screen everything in it counts as read, including replies that arrive meanwhile.
+  const { markConversationRead } = ctx;
+  const messageCount = ctx.messages.length;
+  useEffect(() => {
+    if (conversationId) markConversationRead(conversationId);
+  }, [conversationId, messageCount, markConversationRead]);
+
   // conversationId is null until the visitor's first message creates the
   // conversation server-side (visitor:message without an id) — the composer
   // works either way. No explicit room-join is needed: the server joins the
