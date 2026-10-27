@@ -1,9 +1,9 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { KerTheme } from '../types';
 import { KerPalette } from '../theme/palette';
 import { Icon } from './Icon';
-import { useKeyboardInset } from '../hooks/useKeyboardInset';
+import { useKeyboardHeight } from '../hooks/useKeyboardInset';
 
 interface Props {
   visible: boolean;
@@ -19,10 +19,10 @@ interface Props {
 // In-app dialog built on React Native's own <Modal> (no extra dependency) —
 // replaces native Alert.alert popups. Mirrors the web widget's WidgetModal.vue.
 export function KerModal({ visible, title, onClose, theme, palette, children, footer }: Props) {
-  const { ref, inset } = useKeyboardInset();
+  const inset = useKeyboardHeight();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View ref={ref} style={[styles.root, { paddingBottom: inset }]}>
+      <KeyboardAvoidingView style={[styles.root, { paddingBottom: inset }]} behavior={Platform.OS === 'ios' ? undefined : 'height'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         <View style={[styles.card, { backgroundColor: palette.background, borderColor: palette.border }]}>
           <View style={styles.header}>
@@ -34,7 +34,7 @@ export function KerModal({ visible, title, onClose, theme, palette, children, fo
           <View style={styles.body}>{children}</View>
           {!!footer && <View style={styles.footer}>{footer}</View>}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

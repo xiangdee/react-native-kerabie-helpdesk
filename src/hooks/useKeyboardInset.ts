@@ -1,14 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, View } from 'react-native';
 
+/** True under a view that already makes room for the keyboard, so screens inside it must not pad a second time. */
+export const KeyboardHandledContext = createContext(false);
+
 /**
- * How far the keyboard overlaps the bottom of a view, so the view can pad itself and keep its input visible.
+ * The keyboard's height on iOS (0 on Android, where the window resizes itself, and while it is hidden).
  *
- * KeyboardAvoidingView assumes the view reaches the bottom of the screen, which is wrong inside the iOS page-sheet
- * modal the widget opens in (the keyboard then covers the composer) and does nothing on Android with edge-to-edge.
- * This measures where the view really ends and where the keyboard really starts, so it is right in both.
+ * Apply it as bottom padding to a view that reaches the bottom of the screen, such as the widget's modal root.
+ * The padding lifts the content to exactly the keyboard's top. No positions are measured, which matters inside
+ * the iOS page-sheet modal: there the measured coordinates are relative to the sheet, not the screen, and an
+ * offset-based padding came out short by the sheet's top margin.
+ */
+export function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const change = Keyboard.addListener('keyboardWillChangeFrame', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setHeight(0));
+    return () => {
+      change.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return height;
+}
+
+/**
+ * How far the keyboard overlaps the bottom of a view that does not reach the screen's bottom edge (the chat embedded in
+ * the app's own screen, in push mode). Measures where the view ends and where the keyboard starts. Returns 0 inside the
+ * widget, whose root already pads by the keyboard's height (see [useKeyboardHeight]).
  */
 export function useKeyboardInset() {
+  const handled = useContext(KeyboardHandledContext);
   const ref = useRef<View>(null);
   const [inset, setInset] = useState(0);
   const keyboardTop = useRef<number | null>(null);
@@ -20,6 +46,7 @@ export function useKeyboardInset() {
   }, []);
 
   useEffect(() => {
+    if (handled) return;
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidShow', (e) => {
       keyboardTop.current = e.endCoordinates.screenY;
       measure();
@@ -32,7 +59,7 @@ export function useKeyboardInset() {
       show.remove();
       hide.remove();
     };
-  }, [measure]);
+  }, [measure, handled]);
 
-  return { ref, inset };
+  return { ref, inset: handled ? 0 : inset };
 }

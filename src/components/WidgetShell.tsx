@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { Platform, SafeAreaView, StyleSheet, View } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import type { KerChatSettings, KerTheme } from '../types';
 import { usePalette } from '../theme/palette';
@@ -9,6 +9,7 @@ import { HomeScreen } from './HomeScreen';
 import { HelpScreen } from './HelpScreen';
 import { TicketsScreen } from './TicketsScreen';
 import { TabBar, WidgetTab } from './TabBar';
+import { KeyboardHandledContext, useKeyboardHeight } from '../hooks/useKeyboardInset';
 
 interface Props {
   onClose: () => void;
@@ -25,6 +26,7 @@ interface Props {
 export function WidgetShell({ onClose, theme, chatSettings }: Props) {
   const ctx = useKerAbieContext();
   const palette = usePalette(theme);
+  const keyboardHeight = useKeyboardHeight();
   const single = chatSettings?.layout === 'single';
   const showTabs = !single || !!chatSettings?.showNavigation;
   const [tab, setTab] = useState<WidgetTab>(single || ctx.chatDraft || ctx.chatTarget ? 'chat' : 'home');
@@ -69,6 +71,8 @@ export function WidgetShell({ onClose, theme, chatSettings }: Props) {
   };
 
   return (
+    <KeyboardHandledContext.Provider value={Platform.OS === 'ios'}>
+    <View style={[styles.root, { backgroundColor: palette.background, paddingBottom: keyboardHeight }]}>
     <SafeAreaView style={[styles.root, { backgroundColor: palette.background }]}>
       <View style={{ flex: 1 }}>
         {activeTab === 'home' && <HomeScreen theme={theme} palette={palette} chatSettings={chatSettings} onClose={onClose} onChat={startChat} />}
@@ -90,6 +94,8 @@ export function WidgetShell({ onClose, theme, chatSettings }: Props) {
         <TabBar active={activeTab} ticketsEnabled={tickets} unread={ctx.unreadCount} onChange={changeTab} palette={palette} fontFamily={theme.fontFamily} />
       )}
     </SafeAreaView>
+    </View>
+    </KeyboardHandledContext.Provider>
   );
 }
 
