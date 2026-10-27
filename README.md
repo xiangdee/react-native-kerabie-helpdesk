@@ -15,7 +15,9 @@ Full TypeScript support, real-time chat, push notifications, contextual help, an
   - [useKerAbieNotifications](#usekerAbieNotifications)
 - [Components](#components)
   - [KerAbieFloatingButton](#kerAbieFloatingButton)
+  - [KerAbieWidget](#kerAbieWidget)
   - [KerAbieChatScreen](#kerAbieChatScreen)
+- [The widget](#the-widget)
 - [Types](#types)
 - [Open modes in depth](#open-modes-in-depth)
 - [Campaigns](#campaigns)
@@ -162,7 +164,7 @@ All fields inside the `theme` object are optional.
 | `theme.backgroundColor` | `string` | `"#ffffff"` | Chat screen background. |
 | `theme.textColor` | `string` | `"#0f172a"` | Body text colour. |
 | `theme.bubbleColor` | `string` | same as `primaryColor` | Floating button background colour. |
-| `theme.bubbleIcon` | `ImageSourcePropType` | 💬 emoji | Custom floating button icon. |
+| `theme.bubbleIcon` | `ImageSourcePropType` | chat icon | Custom floating button icon. |
 | `theme.bubbleSize` | `number` | `56` | Floating button diameter in points. |
 | `theme.fontFamily` | `string` | system default | Font family applied to all widget text. |
 | `theme.agentBubbleColor` | `string` | `"#f1f5f9"` | Background colour of agent message bubbles. |
@@ -177,6 +179,12 @@ All fields inside the `theme` object are optional.
 | `chatSettings.showBranding` | `boolean` | Show "Powered by Kerabie" footer (Pro feature: set to `false` to hide). |
 | `chatSettings.enableFileAttachments` | `boolean` | Allow visitors to send file attachments. |
 | `chatSettings.enableVoiceMessages` | `boolean` | Allow visitors to record voice messages. |
+| `chatSettings.layout` | `"full" \| "single"` | `full` has the Home / Chat / Help tabs and a list of conversations; `single` opens straight on one continuous chat. Set in the dashboard. |
+| `chatSettings.showNavigation` | `boolean` | Show the tab bar in the `single` layout too. |
+| `chatSettings.chatHistoryEnabled` | `boolean` | Off hides past conversations: the Chat tab then only offers a new chat. |
+| `chatSettings.logoUrl` | `string` | Logo in the Home header. |
+| `chatSettings.showGreeting` / `greetingText` | `boolean` / `string` | The Home header greeting. `{{name}}` is replaced by the visitor's first name. |
+| `chatSettings.showStatusChip` / `statusChipText` | `boolean` / `string` | The "We reply in minutes" chip in the Home header. |
 
 ### Notifications
 
@@ -376,9 +384,27 @@ import { KerAbieFloatingButton } from 'react-native-kerabie-helpdesk'
 
 ---
 
+### KerAbieWidget
+
+The whole widget: Home, Chat, Help and Tickets behind a bottom tab bar (see [The widget](#the-widget)). Used automatically by the provider for `openMode="modal"` and `"sheet"`. Use it directly when `openMode="push"` and you render it in your own navigator screen.
+
+```tsx
+import { KerAbieWidget } from 'react-native-kerabie-helpdesk'
+
+<KerAbieWidget onClose={() => router.back()} theme={{ primaryColor: '#6d28d9' }} />
+```
+
+| Prop | Type | Required | Description |
+| ---- | ---- | -------- | ----------- |
+| `onClose` | `() => void` | Yes | Called when the user taps the close button. |
+| `theme` | `KerTheme` | No | Theme override (merged with provider theme). |
+| `chatSettings` | `KerChatSettings` | No | Override welcome/offline messages and the other chat settings. |
+
+---
+
 ### KerAbieChatScreen
 
-Full chat screen. Used automatically by the provider for `openMode="modal"`. Use it directly when `openMode="push"` and you render it in your own navigator screen.
+Just the chat screen, without the tabs. Use it when you want your own navigation around the chat. Used automatically by the provider for `openMode="modal"`. Use it directly when `openMode="push"` and you render it in your own navigator screen.
 
 ```tsx
 import { KerAbieChatScreen } from 'react-native-kerabie-helpdesk'
@@ -394,6 +420,23 @@ import { KerAbieChatScreen } from 'react-native-kerabie-helpdesk'
 | `onClose` | `() => void` | Yes | Called when the user taps the close/back button. |
 | `theme` | `KerTheme` | No | Theme override (merged with provider theme). |
 | `chatSettings` | `KerChatSettings` | No | Override welcome/offline messages. |
+
+---
+
+## The widget
+
+Opening the chat (the floating button, `open()`, a campaign or a notification tap) shows the same widget as the Kerabie web chat, in the org's colours, logo and wording from the dashboard:
+
+| Tab | What it has |
+| --- | ----------- |
+| **Home** | Header with logo, status chip and greeting, search, featured products (tap one for its sheet and a link to the store), suggested articles and an "Ask our AI / Chat with us" card. |
+| **Chat** | The `full` layout lists the visitor's conversations with a **New chat** button; the `single` layout opens one continuous chat with the recent history. |
+| **Help** | Change name, download or email a transcript, download or delete the visitor's data, and the most useful articles as FAQs. |
+| **Tickets** | Only when tickets are on for the widget. |
+
+A tapped push notification or `<your-scheme>://conversation/:id` link opens the widget on that conversation. With `layout: "single"` the tab bar is hidden unless `showNavigation` is on.
+
+The widget's icons are drawn by the package itself, so there is no icon or SVG dependency to install.
 
 ---
 
@@ -522,7 +565,7 @@ import { router } from 'expo-router';
 </KerAbieProvider>
 ```
 
-You define the `/chat` route or the `KerAbieChat` screen yourself and render `KerAbieChatScreen` in it. Without `onNavigate`, the chat opens inline.
+You define the `/chat` route or the `KerAbieChat` screen yourself and render `KerAbieWidget` in it (or `KerAbieChatScreen` for the bare chat). Without `onNavigate`, the chat opens inline.
 
 **Custom (any open mode) — control it yourself:**
 ```tsx
@@ -556,7 +599,7 @@ Proactive messages you create in the dashboard (**Campaigns**) also appear in yo
 | **Audience** | New / returning means the first / a later app launch on this device; "hasn't chatted" checks this device's conversations; country is decided by the server from the device's IP. |
 | **Frequency** | Remembered on the device: once per visitor, once per day, or once per app launch. |
 | Button **Open chat** / **Open a link** | Opens the chat / the link in the browser. |
-| Button **Open Knowledge Base** | Calls your `onOpenKnowledgeBase` (the chat has no built-in Knowledge Base screen); opens the chat if you don't pass it. |
+| Button **Open Knowledge Base** | Calls your `onOpenKnowledgeBase`; without it the widget opens on Home, where the articles are. |
 
 ```tsx
 import { usePathname, router } from 'expo-router';
