@@ -5,6 +5,8 @@ import { GradientLayer, bubbleRadius, gradientColors } from './GradientLayer';
 import { contrastText, usePalette } from '../theme/palette';
 import { ArticleSheet } from './ArticleSheet';
 import { Icon } from './Icon';
+import { useArticle } from '../hooks/useArticle';
+import { parseHtml, textOf } from '../utils/html';
 
 interface Props {
   message: KerMessage;
@@ -89,22 +91,42 @@ function BlinkingCursor({ color }: { color: string }) {
 // KB article citation chip: the article an AI reply matched
 // (chatbot.service.ts buildContext). Opens the article in a bottom sheet,
 // which fetches the body itself.
-function CitationChip({ id, title, palette, textColor, theme }: { id: number; title: string; palette: ReturnType<typeof usePalette>; textColor: string; theme: KerTheme }) {
+function CitationChip({ id, title, palette, theme }: { id: number; title: string; palette: ReturnType<typeof usePalette>; textColor: string; theme: KerTheme }) {
   const [open, setOpen] = useState(false);
+  // The article is fetched once (shared with the sheet) so the card can show its picture and the start of its text.
+  const article = useArticle(id);
+  const excerpt = article ? excerptOf(article.content) : '';
 
   return (
     <View style={{ marginTop: 8 }}>
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        style={[styles.citationChip, { borderColor: palette.border, backgroundColor: palette.background }]}
+        style={[styles.linkPreview, { backgroundColor: palette.background, borderColor: palette.border }]}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`Read the article: ${article?.title ?? title}`}
       >
-        <Icon name="article" size={14} color={palette.accent} />
-        <Text style={[styles.citationChipText, { color: textColor }]} numberOfLines={1}>{title}</Text>
-        <Icon name="forward" size={14} color={palette.textMuted} />
+        {!!article?.imageUrl && <Image source={{ uri: article.imageUrl }} style={styles.linkPreviewImg} resizeMode="cover" />}
+        <View style={styles.linkPreviewBody}>
+          <Text style={[styles.linkPreviewTitle, { color: palette.text }]} numberOfLines={2}>{article?.title ?? title}</Text>
+          {!!excerpt && <Text style={[styles.linkPreviewDesc, { color: palette.textMuted }]} numberOfLines={2}>{excerpt}</Text>}
+          <View style={styles.linkPreviewSiteRow}>
+            <Icon name="article" size={12} color={palette.accent} strokeWidth={1.9} />
+            <Text style={[styles.linkPreviewSite, { color: palette.textSubtle, flex: 1 }]} numberOfLines={1}>Help article</Text>
+            <Icon name="forward" size={14} color={palette.textSubtle} />
+          </View>
+        </View>
       </TouchableOpacity>
-      {open && <ArticleSheet visible articleId={id} title={title} onClose={() => setOpen(false)} theme={theme} palette={palette} />}
+      {open && (
+        <ArticleSheet visible articleId={id} title={article?.title ?? title} content={article?.content} imageUrl={article?.imageUrl ?? undefined} onClose={() => setOpen(false)} theme={theme} palette={palette} />
+      )}
     </View>
   );
+}
+
+function excerptOf(html: string): string {
+  const text = textOf(parseHtml(html)).replace(/\s+/g, ' ').trim();
+  return text.length > 140 ? `${text.slice(0, 140).trimEnd()}...` : text;
 }
 
 function agentInitials(name?: string): string {

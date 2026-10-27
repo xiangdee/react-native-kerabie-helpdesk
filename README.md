@@ -438,6 +438,8 @@ A tapped push notification or `<your-scheme>://conversation/:id` link opens the 
 
 The widget's icons are drawn by the package itself, so there is no icon or SVG dependency to install.
 
+Articles open in a bottom sheet and are drawn by the package too (headings, bold, italic, underline, links, lists, quotes, code, images and tables, with entities such as `&nbsp;` decoded), so there is no HTML renderer to install. When an AI reply cites an article it shows as a tappable card with the article's picture and the start of its text.
+
 ---
 
 ## Types

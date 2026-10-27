@@ -16,6 +16,8 @@ import { KerPalette, withAlpha } from '../theme/palette';
 import type { KerTheme } from '../types';
 import { ArticleFeedback } from './ArticleFeedback';
 import { Icon } from './Icon';
+import { HtmlContent } from './HtmlContent';
+import { loadArticle } from '../hooks/useArticle';
 
 interface Props {
   visible: boolean;
@@ -27,42 +29,6 @@ interface Props {
   onClose: () => void;
   theme: KerTheme;
   palette: KerPalette;
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-// react-native-render-html is an optional peer dependency (apps that never
-// open an article shouldn't be forced to install it). Resolved once, lazily,
-// with a plain-text fallback for apps that haven't added it.
-let renderHtmlModule: typeof import('react-native-render-html') | null | undefined;
-function loadRenderHtml(): Promise<typeof import('react-native-render-html') | null> {
-  if (renderHtmlModule !== undefined) return Promise.resolve(renderHtmlModule);
-  return import('react-native-render-html')
-    .then((mod) => { renderHtmlModule = mod; return mod; })
-    .catch(() => { renderHtmlModule = null; return null; });
-}
-
-function ArticleContent({ html, textColor, width }: { html: string; textColor: string; width: number }) {
-  const [mod, setMod] = useState(renderHtmlModule);
-
-  useEffect(() => {
-    if (mod === undefined) loadRenderHtml().then(setMod);
-  }, [mod]);
-
-  if (mod) {
-    const RenderHTML = mod.default;
-    return (
-      <RenderHTML
-        contentWidth={width}
-        source={{ html }}
-        baseStyle={{ color: textColor, fontSize: 14, lineHeight: 22 }}
-        enableExperimentalMarginCollapsing
-      />
-    );
-  }
-  return <Text style={{ color: textColor, fontSize: 14, lineHeight: 22 }}>{stripHtml(html)}</Text>;
 }
 
 // Bottom-sheet article reader on React Native's own <Modal> (no extra
@@ -108,7 +74,7 @@ export function ArticleSheet({ visible, articleId, title, content, imageUrl, onC
               <ActivityIndicator color={palette.accent} style={{ marginVertical: 16 }} />
             ) : html ? (
               <>
-                <ArticleContent html={html} textColor={palette.text} width={width - 32} />
+                <HtmlContent html={html} palette={palette} fontFamily={theme.fontFamily} />
                 <ArticleFeedback articleId={articleId} textColor={palette.text} borderColor={palette.border} />
               </>
             ) : (
