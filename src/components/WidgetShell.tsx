@@ -27,14 +27,20 @@ export function WidgetShell({ onClose, theme, chatSettings }: Props) {
   const palette = usePalette(theme);
   const single = chatSettings?.layout === 'single';
   const showTabs = !single || !!chatSettings?.showNavigation;
-  const [tab, setTab] = useState<WidgetTab>(single || ctx.chatDraft ? 'chat' : 'home');
+  const [tab, setTab] = useState<WidgetTab>(single || ctx.chatDraft || ctx.chatTarget ? 'chat' : 'home');
   // Inside the Chat tab of the full layout: the list of chats, or one open chat.
-  const [chatOpen, setChatOpen] = useState(single || !!ctx.chatDraft);
+  const [chatOpen, setChatOpen] = useState(single || !!ctx.chatDraft || !!ctx.chatTarget);
 
   // A search-bar draft goes straight to a chat.
   useEffect(() => {
     if (ctx.chatDraft) { setTab('chat'); setChatOpen(true); }
   }, [ctx.chatDraft]);
+
+  // A tapped push notification or deep link lands on its conversation, not on Home.
+  const { chatTarget, clearChatTarget } = ctx;
+  useEffect(() => {
+    if (chatTarget) { setTab('chat'); setChatOpen(true); clearChatTarget(); }
+  }, [chatTarget, clearChatTarget]);
 
   const tickets = ctx.config.ticketsEnabled;
   const activeTab = tab === 'tickets' && !tickets ? 'home' : tab;

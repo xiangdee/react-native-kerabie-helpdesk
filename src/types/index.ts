@@ -291,6 +291,9 @@ export interface KerAbieContextValue {
   /** False until the first answer (or remembered list) is in, so screens show a skeleton rather than "no chats". */
   conversationsLoaded: boolean;
   currentConversation: KerConversation | null;
+  /** A conversation a push tap or deep link asked for; the widget opens on it, then clears this. */
+  chatTarget: number | null;
+  clearChatTarget: () => void;
   /** Switches the chat to an empty draft; the conversation is only created once the first message is sent. */
   startNewConversation: () => void;
   /** Switches the chat to one of `conversations` and loads its messages. */

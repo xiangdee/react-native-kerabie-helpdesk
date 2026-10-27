@@ -129,6 +129,9 @@ export function KerAbieProvider({
   // Header.vue shows) had no way to reach it at all. chatSettings (an
   // explicit developer override) still wins when both set `name`.
   const mergedChatSettings: KerChatSettings = { ...remoteChatSettings, ...chatSettings };
+  // The tap/link handler below is set up once, so it reads the layout through a ref.
+  const singleLayout = useRef(false);
+  singleLayout.current = mergedChatSettings.layout === 'single';
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // For the reconnect catch-up below: whether a handshake has completed before, and the current messages.
   const hasConnectedOnce = useRef(false);
@@ -140,6 +143,8 @@ export function KerAbieProvider({
   // with the id the server assigned (read off that message's echo), so any
   // message sent meanwhile lands in the same conversation instead of
   // creating another one.
+  const [chatTarget, setChatTarget] = useState<number | null>(null);
+  const clearChatTarget = useCallback(() => setChatTarget(null), []);
   const conversationsFresh = useRef(false);
   const draftCreation = useRef<{ tempId: string; promise: Promise<number | null>; resolve: (id: number | null) => void } | null>(null);
 
@@ -159,25 +164,21 @@ export function KerAbieProvider({
   // Open the chat on the right conversation: from a tapped push notification (its data carries the
   // conversationId, so no URL scheme is involved) or from a <your-scheme>://conversation/:id link.
   useEffect(() => {
-    const openConversation = (conversationId: number) => {
-      // Always surface the conversation in state so ChatScreen can scroll to it
-      setCurrentConversation((prev) => prev?.id === conversationId ? prev : {
-        id: conversationId,
-        status: 'open',
-        unreadCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+    const openFromLink = (conversationId: number) => {
+      // Loads the conversation and tells the widget to land on it instead of Home.
+      // (The single layout already holds every conversation in its one continuous chat.)
+      if (!singleLayout.current) void openConversation(conversationId);
+      setChatTarget(conversationId);
       navigateTo({ type: 'conversation', conversationId });
     };
 
-    KerAbieDeepLinkService.init({ onConversation: openConversation });
+    KerAbieDeepLinkService.init({ onConversation: openFromLink });
 
     let live = true;
     let stopListening: (() => void) | undefined;
     Promise.resolve(notificationAdapter.onTap((data) => {
       const id = Number(data.conversationId);
-      if (Number.isInteger(id) && id > 0) openConversation(id);
+      if (Number.isInteger(id) && id > 0) openFromLink(id);
     })).then((stop) => { if (live) stopListening = stop; else stop(); });
 
     return () => {
@@ -273,6 +274,13 @@ export function KerAbieProvider({
         const s = data.settings ?? {};
         StorageService.set('widget_settings:' + widgetKey, s).catch(() => {});
         applySettings(s);
+
+        // One continuous chat (single layout): the whole recent history, not just the latest conversation.
+        if (s.layout === 'single' && s.chatHistoryEnabled !== false) {
+          ApiService.get<{ messages: any[] }>('/public/widget/messages', { all: '1' })
+            .then((all) => { if (all.messages?.length) setMessages(all.messages.map(mapIncomingMessage)); })
+            .catch(() => {});
+        }
       } catch {}
 
       socketService.connect({
@@ -642,6 +650,8 @@ export function KerAbieProvider({
     unreadCount,
     conversations,
     conversationsLoaded,
+    chatTarget,
+    clearChatTarget,
     startNewConversation,
     openConversation,
     refreshConversations,
