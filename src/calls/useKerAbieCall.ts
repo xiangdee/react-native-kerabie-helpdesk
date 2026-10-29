@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioSession, registerGlobals } from '@livekit/react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { socketService } from '../services/socket.service';
+import { usePreChat } from '../hooks/usePreChat';
 import { CallService, type CallJoin } from './call.service';
 
 export type KerCallPhase =
   | 'idle'
+  /** The org asks for the pre-chat details first (the same form as the chat). */
+  | 'details'
   /** Asking Kerabie to start the call. */
   | 'starting'
   /** Every agent is busy: the customer is in the queue. */
@@ -59,6 +62,7 @@ function fromJoin(join: CallJoin): KerCallState {
  */
 export function useKerAbieCall() {
   const { config } = useKerAbieContext();
+  const preChat = usePreChat();
   const [state, setState] = useState<KerCallState>(IDLE);
   const callIdRef = useRef<number | null>(null);
   callIdRef.current = state.callId;
@@ -98,8 +102,7 @@ export function useKerAbieCall() {
     return () => { AudioSession.stopAudioSession(); };
   }, [connected]);
 
-  const start = useCallback(async (video = false) => {
-    if (!available) return;
+  const placeCall = useCallback(async (video: boolean) => {
     setState({ ...IDLE, phase: 'starting', video: video && videoAvailable });
     try {
       ensureLiveKit();
@@ -107,7 +110,23 @@ export function useKerAbieCall() {
     } catch (e: any) {
       setState({ ...IDLE, phase: 'ended', error: e?.message || 'Could not start the call. Try again in a moment.' });
     }
-  }, [available, videoAvailable]);
+  }, [videoAvailable]);
+
+  const start = useCallback(async (video = false) => {
+    if (!available) return;
+    // The org asks every visitor for details before a chat. A call asks the same, once.
+    if (preChat.needsDetails) {
+      setState({ ...IDLE, phase: 'details', video: video && videoAvailable });
+      return;
+    }
+    await placeCall(video);
+  }, [available, videoAvailable, preChat.needsDetails, placeCall]);
+
+  /** The details were filled in: save them and place the call the visitor asked for. */
+  const submitDetails = useCallback((answers: Record<string, string>) => {
+    preChat.submit(answers);
+    return placeCall(state.video);
+  }, [preChat, placeCall, state.video]);
 
   const hangUp = useCallback(async () => {
     const id = callIdRef.current;
@@ -118,7 +137,7 @@ export function useKerAbieCall() {
   /** Closes the call screen once the call is over. */
   const dismiss = useCallback(() => setState(IDLE), []);
 
-  return { available, videoAvailable, state, start, hangUp, dismiss };
+  return { available, videoAvailable, state, start, submitDetails, hangUp, dismiss };
 }
 
 export type KerAbieCall = ReturnType<typeof useKerAbieCall>;

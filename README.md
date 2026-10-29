@@ -624,7 +624,7 @@ Customers can call your team from the app: voice, and video if you turn it on. E
 
 ### What you need
 
-- Calls turned on in the dashboard (**Settings, Widget, Calls**) and call minutes on your plan.
+- Calls turned on in the dashboard (**Settings, Calls**) and call minutes on your plan.
 - A **development build**. Calls use native WebRTC code, so they do not run in Expo Go. When the packages are missing, or you are in Expo Go, you simply do not import the calls entry point and the app is unchanged.
 
 ### Install
@@ -659,6 +659,14 @@ import { KerAbieCallButton } from 'react-native-kerabie-helpdesk/calls'
 <KerAbieCallButton label="Video call" video />
 ```
 
+To put call buttons in the chat header itself (a phone, and a camera when video is on), pass the icon variant to the provider. It is a prop so the main package still never loads the call libraries:
+
+```tsx
+import { KerAbieCallButton } from 'react-native-kerabie-helpdesk/calls'
+
+<KerAbieProvider widgetKey="..." callAction={<KerAbieCallButton variant="icon" />}>
+```
+
 The button opens a call screen that shows the queue position, ringing, the call itself (mute, camera, end) and how it ended.
 
 For your own design, use the hook and the screen separately:
@@ -688,6 +696,8 @@ function Support() {
 | `start(video?)` | Starts a call. A customer who already has one is put back into it. |
 | `hangUp()` | Ends the call, or cancels it before it is answered. |
 | `dismiss()` | Closes the call screen after it ended. |
+
+If you ask customers for their details before a chat (the pre-chat form in the dashboard), the call asks the same questions first, once. Pass `user` to `KerAbieProvider`, or call `setUser` after login, and a customer you have identified is never asked. On a video call the customer sees the agent, with their own camera as a small picture in the corner.
 
 A call goes to every free agent at once; the first to answer wins. When nobody is free, the AI voice agent answers if you turned it on, and otherwise the customer waits in the queue and the call is marked missed after two minutes. A call you reopen the app into is picked up again.
 

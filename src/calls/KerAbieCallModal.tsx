@@ -5,6 +5,8 @@ import { Track } from 'livekit-client';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { usePalette, type KerPalette } from '../theme/palette';
 import type { KerTheme } from '../types';
+import { PreChatForm } from '../components/PreChatForm';
+import { usePreChat } from '../hooks/usePreChat';
 import type { KerAbieCall } from './useKerAbieCall';
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -35,6 +37,7 @@ function InCall({ call, palette, theme }: { call: KerAbieCall; palette: KerPalet
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const tracks = useTracks([Track.Source.Camera]);
   const remote = tracks.find((t) => isTrackReference(t) && !t.participant.isLocal);
+  const local = tracks.find((t) => isTrackReference(t) && t.participant.isLocal);
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
@@ -47,8 +50,16 @@ function InCall({ call, palette, theme }: { call: KerAbieCall; palette: KerPalet
   return (
     <>
       <View style={styles.center}>
-        {state.video && remote && isTrackReference(remote) ? (
-          <View style={styles.video}><VideoTrack trackRef={remote} style={StyleSheet.absoluteFill as any} objectFit="cover" /></View>
+        {state.video && (remote || local) ? (
+          <View style={styles.video}>
+            {remote && isTrackReference(remote) && <VideoTrack trackRef={remote} style={StyleSheet.absoluteFill as any} objectFit="cover" />}
+            {/* The customer's own camera, small, in the corner */}
+            {local && isTrackReference(local) && isCameraEnabled && (
+              <View style={styles.self}>
+                <VideoTrack trackRef={local} style={StyleSheet.absoluteFill as any} objectFit="cover" mirror />
+              </View>
+            )}
+          </View>
         ) : (
           <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
             <Text style={[styles.avatarText, { color: palette.onPrimary, fontFamily: theme.fontFamily }]}>{who.trim().charAt(0).toUpperCase()}</Text>
@@ -77,6 +88,7 @@ export function KerAbieCallModal({ call }: { call: KerAbieCall }) {
   const palette = usePalette(config.theme);
   const { theme } = config;
   const { state, hangUp, dismiss } = call;
+  const preChat = usePreChat();
   if (state.phase === 'idle') return null;
 
   const text = (s: string, strong = false) => (
@@ -99,6 +111,27 @@ export function KerAbieCallModal({ call }: { call: KerAbieCall }) {
           <InCall call={call} palette={palette} theme={theme} />
         </LiveKitRoom>
       </View>
+    );
+  } else if (state.phase === 'details') {
+    body = (
+      <>
+        <View style={styles.center}>
+          <PreChatForm
+            fields={preChat.fields}
+            title="Before we call"
+            subtitle="Share your details so we can follow up"
+            submitLabel="Start call"
+            requireContact={preChat.isBuiltIn}
+            initial={preChat.initial}
+            theme={theme}
+            palette={palette}
+            onSubmit={call.submitDetails}
+          />
+        </View>
+        <View style={styles.controls}>
+          <RoundButton label="Cancel" onPress={dismiss} bg={palette.surface} fg={palette.text} palette={palette} theme={theme} />
+        </View>
+      </>
     );
   } else if (state.phase === 'ended') {
     body = (
@@ -144,6 +177,7 @@ const styles = StyleSheet.create({
   avatar: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 38, fontWeight: '700' },
   video: { width: '100%', aspectRatio: 3 / 4, borderRadius: 20, overflow: 'hidden', backgroundColor: '#000' },
+  self: { position: 'absolute', right: 12, bottom: 12, width: 92, height: 124, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', backgroundColor: '#000' },
   name: { fontSize: 20, fontWeight: '700' },
   sub: { fontSize: 14, lineHeight: 20 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 22 },

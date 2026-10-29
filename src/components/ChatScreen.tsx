@@ -15,6 +15,7 @@ import { useKerAbieContext } from '../provider/KerAbieContext';
 import { personalize } from '../utils/personalize';
 import { KerChatSettings, KerEnrichmentField, KerMessage, KerTheme, KerUser } from '../types';
 import { PreChatForm } from './PreChatForm';
+import { usePreChat } from '../hooks/usePreChat';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { AiOrb } from './AiOrb';
@@ -31,11 +32,6 @@ import { useAttachmentStaging } from '../hooks/useAttachmentStaging';
 import { usePalette } from '../theme/palette';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { Icon } from './Icon';
-
-const DEFAULT_PRE_CHAT_FIELDS: KerEnrichmentField[] = [
-  { key: 'name', label: 'Your name', type: 'text', required: false, placeholder: 'Your name' },
-  { key: 'email', label: 'Email address', type: 'email', required: false, placeholder: 'Email address' },
-];
 
 interface Props {
   onClose: () => void;
@@ -189,13 +185,9 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
   // follow up. Mirrors the web widget's offline-gated enrichment form
   // (ChatScreen.vue's showEnrichmentForm/isOfflineNoBot).
   const isOfflineNoBot = ctx.onlineAgents === 0 && chatSettings?.chatbotEnabled !== true;
-  // The org's own questions when it configured a pre-chat form; otherwise the built-in name + email form.
-  const customFields = chatSettings?.customerEnrichmentEnabled ? chatSettings.customerEnrichmentForm?.fields ?? [] : [];
-  const preChatFields = customFields.length > 0 ? customFields : DEFAULT_PRE_CHAT_FIELDS;
-  const alreadyAnswered =
-    !!ctx.currentUser?.name || !!ctx.currentUser?.email || Object.keys(ctx.currentUser?.customAttributes ?? {}).length > 0;
+  const preChat = usePreChat();
   const showPreChatForm =
-    (chatSettings?.customerEnrichmentEnabled === true || isOfflineNoBot) && !alreadyAnswered && ctx.messages.length === 0;
+    (chatSettings?.customerEnrichmentEnabled === true || isOfflineNoBot) && !preChat.alreadyAnswered && ctx.messages.length === 0;
 
   // Guided flow buttons: the greeting's, or those on the latest bot message until the visitor answers it.
   // The opening question can differ by screen: ask again for the one the visitor is on now, before they tap anything.
@@ -204,22 +196,6 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guided = activeChoices(ctx.messages, chatSettings?.guidedGreeting, !showPreChatForm);
-
-  const submitPreChat = useCallback((answers: Record<string, string>) => {
-    // name/email/phone are the contact's own fields; every other answer is a custom attribute.
-    const user: KerUser = { ...ctx.currentUser };
-    const custom: Record<string, string> = { ...(ctx.currentUser?.customAttributes ?? {}) };
-    for (const f of preChatFields) {
-      const v = (answers[f.key] ?? '').trim();
-      if (!v) continue;
-      if (f.key === 'name' || f.key === 'email' || f.key === 'phone') user[f.key] = v;
-      else custom[f.key] = v;
-    }
-    if (Object.keys(custom).length) user.customAttributes = custom;
-    // setUser persists to storage and POSTs /widget/identify (see KerAbieProvider.setUser) — the email
-    // on file unlocks the backend's reply-by-email continuation once the conversation escalates.
-    ctx.setUser(user);
-  }, [ctx, preChatFields]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: palette.background }]}>
@@ -242,6 +218,7 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
             </Text>
           )}
         </View>
+        {!showSettings && ctx.callAction}
         {!onBack && !showSettings && (chatSettings?.layout !== 'single' || chatSettings?.showMenu) && (
           <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.closeBtn} accessibilityLabel="Settings">
             <Icon name="user" size={19} color={palette.textMuted} />
@@ -298,15 +275,15 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
 
         {showPreChatForm && (
           <PreChatForm
-            fields={preChatFields}
+            fields={preChat.fields}
             title={isOfflineNoBot ? "We're offline right now" : 'Before we start'}
             subtitle={isOfflineNoBot ? "Leave your details and we'll get back to you" : 'Share your details so we can follow up'}
             submitLabel={isOfflineNoBot ? 'Send' : 'Start chat'}
-            requireContact={preChatFields === DEFAULT_PRE_CHAT_FIELDS}
-            initial={{ name: ctx.currentUser?.name ?? '', email: ctx.currentUser?.email ?? '' }}
+            requireContact={preChat.isBuiltIn}
+            initial={preChat.initial}
             theme={theme}
             palette={palette}
-            onSubmit={submitPreChat}
+            onSubmit={preChat.submit}
           />
         )}
 

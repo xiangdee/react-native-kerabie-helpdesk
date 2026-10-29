@@ -274,6 +274,12 @@ export interface KerAbieProviderProps {
    * app decides where it goes (e.g. `router.push('/help')`); without this the chat opens instead.
    */
   onOpenKnowledgeBase?: () => void;
+  /**
+   * Shown in the chat header, next to Settings. Pass `<KerAbieCallButton variant="icon" />` from
+   * 'react-native-kerabie-helpdesk/calls' to put call buttons in the chat. It is a prop, not an import, so the main
+   * package never loads the call libraries.
+   */
+  callAction?: React.ReactNode;
   notifications?: KerNotificationConfig;
   chatSettings?: KerChatSettings;
   children: React.ReactNode;
@@ -342,6 +348,7 @@ export interface KerAbieContextValue {
   openWithContext: (context: KerChatContext) => void;
 
   // Config
+  callAction: React.ReactNode;
   config: Required<Pick<KerAbieProviderProps, 'openMode' | 'position' | 'hideFloatingButton'>> & {
     theme: KerTheme;
     widgetKey: string;
@@ -350,6 +357,9 @@ export interface KerAbieContextValue {
     /** From /public/widget/init — the dashboard has calls on and the plan still has minutes. Used by the optional calls entry point. */
     callsEnabled: boolean;
     videoCallsEnabled: boolean;
+    /** The pre-chat form the org set up (Messages > Pre-chat form), asked before a chat and before a call. */
+    customerEnrichmentEnabled: boolean;
+    customerEnrichmentForm: { fields: KerEnrichmentField[] } | null;
     /** /public/widget/init has answered — launchers render nothing before this. */
     configReady: boolean;
     launcherType: 'bubble' | 'searchbar';

@@ -6,7 +6,7 @@ import { Text, View, ViewStyle } from 'react-native';
 export type IconName =
   | 'home' | 'chat' | 'help' | 'tickets' | 'search' | 'close' | 'back' | 'forward' | 'article' | 'sparkle'
   | 'user' | 'bell' | 'download' | 'mail' | 'shield' | 'trash' | 'check' | 'package' | 'attach' | 'smile'
-  | 'send' | 'image' | 'arrowRight' | 'plus';
+  | 'send' | 'image' | 'arrowRight' | 'plus' | 'phone' | 'video';
 
 interface Props {
   name: IconName;
@@ -133,6 +133,17 @@ export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: Props) {
       break;
     case 'package':
       parts = [outline(12, 12, 16, 16, 2), bar(12, 9, 16), bar(12, 12.5, 7, 0, true)];
+      break;
+    case 'phone':
+      // A handset: a pill turned on its diagonal with a heavier earpiece and mouthpiece at the ends.
+      parts = [
+        box(12, 12, 6, 15, { backgroundColor: color, borderRadius: 3 * u }, 45),
+        box(7.5, 16.5, 7, 7, { backgroundColor: color, borderRadius: 2.5 * u }, 45),
+        box(16.5, 7.5, 7, 7, { backgroundColor: color, borderRadius: 2.5 * u }, 45),
+      ];
+      break;
+    case 'video':
+      parts = [outline(10.5, 12, 14, 11, 2.5), box(19.5, 12, 4, 6, { backgroundColor: color, borderRadius: 1.5 * u })];
       break;
   }
 
