@@ -3,7 +3,7 @@ import { AudioSession, registerGlobals } from '@livekit/react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
 import { socketService } from '../services/socket.service';
 import { usePreChat } from '../hooks/usePreChat';
-import { CallService, type CallJoin } from './call.service';
+import { CallService, type AgentSession, type CallJoin } from './call.service';
 
 export type KerCallPhase =
   | 'idle'
@@ -36,10 +36,11 @@ export interface KerCallState {
 const IDLE: KerCallState = { phase: 'idle', callId: null, video: false, handler: null, livekit: null };
 
 let globalsReady = false;
-// LiveKit needs its WebRTC globals registered once, before the first room is created.
+// LiveKit needs its WebRTC globals registered once, before the first room is created. An app that already uses LiveKit
+// has done it, so it is not done twice.
 function ensureLiveKit() {
   if (globalsReady) return;
-  registerGlobals();
+  if (typeof (globalThis as { RTCPeerConnection?: unknown }).RTCPeerConnection === 'undefined') registerGlobals();
   globalsReady = true;
 }
 
@@ -60,7 +61,18 @@ function fromJoin(join: CallJoin): KerCallState {
  *
  * `available` is true when the dashboard has calls on, the plan has minutes and the packages are installed.
  */
-export function useKerAbieCall() {
+export function useKerAbieCall(options?: {
+  prepare?: () => Promise<AgentSession | undefined>;
+  /**
+   * Start and stop the phone's audio session for the call (default true). Set it to false when your app already
+   * manages LiveKit's audio session itself, so a Kerabie call does not stop yours.
+   */
+  manageAudioSession?: boolean;
+}) {
+  const manageAudioSession = options?.manageAudioSession ?? true;
+  // Read when a call is placed, so the newest token is used without rebuilding the callbacks.
+  const prepare = useRef(options?.prepare);
+  prepare.current = options?.prepare;
   const { config } = useKerAbieContext();
   const preChat = usePreChat();
   const [state, setState] = useState<KerCallState>(IDLE);
@@ -97,16 +109,17 @@ export function useKerAbieCall() {
   // The phone's audio is routed for a call only while there is one.
   const connected = state.phase === 'connected';
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || !manageAudioSession) return;
     AudioSession.startAudioSession();
     return () => { AudioSession.stopAudioSession(); };
-  }, [connected]);
+  }, [connected, manageAudioSession]);
 
   const placeCall = useCallback(async (video: boolean) => {
     setState({ ...IDLE, phase: 'starting', video: video && videoAvailable });
     try {
       ensureLiveKit();
-      setState(fromJoin(await CallService.start(video && videoAvailable)));
+      const agent = await prepare.current?.();
+      setState(fromJoin(await CallService.start(video && videoAvailable, agent)));
     } catch (e: any) {
       setState({ ...IDLE, phase: 'ended', error: e?.message || 'Could not start the call. Try again in a moment.' });
     }

@@ -94,6 +94,7 @@ export function WidgetShell({ onClose, theme, chatSettings }: Props) {
         <TabBar active={activeTab} ticketsEnabled={tickets} unread={ctx.unreadCount} onChange={changeTab} palette={palette} fontFamily={theme.fontFamily} />
       )}
     </SafeAreaView>
+    {ctx.agentElement}
     </View>
     </KeyboardHandledContext.Provider>
   );

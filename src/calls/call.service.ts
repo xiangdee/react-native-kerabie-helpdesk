@@ -11,10 +11,18 @@ export interface CallJoin {
   livekit: { url: string; token: string };
 }
 
+/** Who the customer is and which screens the app can show, for the AI agent's account tools and pickers. */
+export interface AgentSession {
+  userToken?: string;
+  uiTools?: string[];
+  /** The actions the app registered, described for the agent. */
+  appActions?: { name: string; description: string; parameters?: Record<string, unknown> }[];
+}
+
 export const CallService = {
   /** Starts a call. If the visitor already has one going, they are put back into it. */
-  start(video: boolean): Promise<CallJoin> {
-    return ApiService.post<CallJoin>('/public/widget/calls', { video });
+  start(video: boolean, agent?: AgentSession): Promise<CallJoin> {
+    return ApiService.post<CallJoin>('/public/widget/calls', { video, ...(agent?.userToken ? { userToken: agent.userToken } : {}), ...(agent?.uiTools?.length ? { uiTools: agent.uiTools } : {}), ...(agent?.appActions?.length ? { appActions: agent.appActions } : {}) });
   },
 
   /** The call this visitor is in right now, so an app that was closed can rejoin it. */

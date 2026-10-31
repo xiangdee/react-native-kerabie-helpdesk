@@ -16,12 +16,31 @@ interface SocketConfig {
 
 type EventHandler<T = any> = (data: T) => void;
 
+/** What the AI agent needs with each message. */
+export interface AgentPayload {
+  userToken?: string;
+  uiTools?: string[];
+  appActions?: { name: string; description: string; parameters?: Record<string, unknown> }[];
+}
+
+/** The agent asks the app to show a screen or run an action, and waits. */
+export interface AgentRequest {
+  requestId: string;
+  kind: 'ui' | 'action';
+  name: string;
+  args: Record<string, any>;
+}
+
 class KerSocketService {
   private socket: Socket | null = null;
   private handlers: Map<string, Set<EventHandler>> = new Map();
   // The screen the app said the visitor is on (see setScreen), re-sent after every reconnect.
   private screen: string | null = null;
   private screenSince = 0;
+  // What the AI agent needs with each message (the signed-in customer's token and the app's screens and actions).
+  private agentSource: (() => Promise<AgentPayload | undefined>) | null = null;
+  // Messages leave in the order they were sent, even though reading the token is asynchronous.
+  private sendChain: Promise<void> = Promise.resolve();
 
   connect(config: SocketConfig) {
     if (this.socket?.connected) {
@@ -67,6 +86,7 @@ class KerSocketService {
 
     this.socket.on('disconnect', () => this.emit('disconnect', undefined));
     this.socket.on('chat:message', (data: KerMessage) => this.emit('message', data));
+    this.socket.on('agent:request', (data: AgentRequest) => this.emit('agent_request', data));
     this.socket.on('chat:typing', (data: any) => this.emit('typing', data));
     this.socket.on('chat:read', (data: any) => this.emit('read', data));
     // The backend emits 'agents:online' and 'chat:status_change' (see
@@ -129,13 +149,29 @@ class KerSocketService {
     choice?: { flowId: string; choiceId: string },
   ) {
     const first = attachments?.[0];
-    this.socket?.emit('visitor:message', {
-      conversationId,
-      body,
-      choice,
-      type: first?.type,
-      metadata: first ? { key: first.key, fileName: first.name } : undefined,
+    this.sendChain = this.sendChain.then(async () => {
+      let agent: AgentPayload | undefined;
+      try { agent = await this.agentSource?.(); } catch { agent = undefined; }
+      this.socket?.emit('visitor:message', {
+        conversationId,
+        body,
+        choice,
+        type: first?.type,
+        metadata: first ? { key: first.key, fileName: first.name } : undefined,
+        // An empty object (not nothing) tells the server nobody is signed in any more.
+        ...(this.agentSource ? { agent: agent ?? {} } : {}),
+      });
     });
+  }
+
+  /** Sets where the agent's details come from, or null when the app has no agent. */
+  setAgentSource(source: (() => Promise<AgentPayload | undefined>) | null) {
+    this.agentSource = source;
+  }
+
+  /** Answers the agent's request for a screen or action. */
+  answerAgent(requestId: string, result?: string, error?: string) {
+    this.socket?.emit('agent:result', { requestId, ...(error ? { error } : { result }) });
   }
 
   // chat.gateway.ts's TypingDto field is `typing`, not `isTyping` — every

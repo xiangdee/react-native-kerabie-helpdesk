@@ -23,6 +23,7 @@ import { StorageService } from '../services/storage.service';
 import { NotificationService, expoNotificationAdapter } from '../services/notification.service';
 import { KerAbieDeepLinkService } from '../services/deeplink.service';
 import { WidgetShell } from '../components/WidgetShell';
+import { useAgentUi } from '../agent/AgentUi';
 import { CampaignBanner } from '../components/CampaignBanner';
 import { useCampaignTriggers } from '../hooks/useCampaignTriggers';
 import { DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from '../theme/palette';
@@ -83,6 +84,7 @@ export function KerAbieProvider({
   user: initialUser,
   theme: themeProp,
   position = 'bottom-right',
+  agent,
   defaultOpen = false,
   hideFloatingButton = false,
   onNavigate,
@@ -95,6 +97,43 @@ export function KerAbieProvider({
   chatSettings,
   children,
 }: KerAbieProviderProps) {
+  // The AI agent in the chat: the app's screens are drawn inside the chat window, and its answers go back over the socket.
+  const agentUi = useAgentUi(agent?.ui);
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
+  const agentHandlersRef = useRef(agentUi.handlers);
+  agentHandlersRef.current = agentUi.handlers;
+  const hasAgent = !!agent;
+
+  useEffect(() => {
+    if (!hasAgent) {
+      socketService.setAgentSource(null);
+      return;
+    }
+    socketService.setAgentSource(async () => {
+      const current = agentRef.current;
+      const userToken = (await current?.getUserToken?.()) || undefined;
+      const appActions = Object.entries(current?.actions ?? {}).map(([name, a]) => ({ name, description: a.description, ...(a.parameters ? { parameters: a.parameters } : {}) }));
+      return { userToken, uiTools: Object.keys(agentHandlersRef.current), appActions };
+    });
+    const off = socketService.on('agent_request', async (req: { requestId: string; kind: 'ui' | 'action'; name: string; args: Record<string, any> }) => {
+      try {
+        const run = req.kind === 'ui'
+          ? (agentHandlersRef.current as Record<string, ((p: unknown) => Promise<unknown>) | undefined>)[req.name]
+          : agentRef.current?.actions?.[req.name]?.run;
+        if (!run) throw new Error('not available');
+        const answer = await run(req.args ?? {});
+        socketService.answerAgent(req.requestId, typeof answer === 'string' ? answer : JSON.stringify(answer));
+      } catch {
+        socketService.answerAgent(req.requestId, undefined, 'failed');
+      }
+    });
+    return () => {
+      off();
+      socketService.setAgentSource(null);
+    };
+  }, [hasAgent]);
+
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [sessionId, setSessionId] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<KerUser | null>(initialUser ?? null);
@@ -689,6 +728,7 @@ export function KerAbieProvider({
     clearChatDraft,
     openWithContext,
     callAction,
+    agentElement: agentUi.element,
     config: {
       widgetKey,
       openMode,

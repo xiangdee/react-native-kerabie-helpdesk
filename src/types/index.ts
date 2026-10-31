@@ -1,3 +1,4 @@
+import type { KerAbieAgentConfig } from '../agent/types';
 import { ImageSourcePropType } from 'react-native';
 
 export interface KerKbArticle {
@@ -246,6 +247,11 @@ export interface KerChatSettings {
 
 export interface KerAbieProviderProps {
   widgetKey: string;
+  /**
+   * The AI agent of your app: who is signed in, the screens your app can show and the things it can do for the agent.
+   * Works in the chat everywhere, including Expo Go. See `KerAbieAgentConfig`.
+   */
+  agent?: KerAbieAgentConfig;
   appName?: string;
   appVersion?: string;
   appBuild?: string;
@@ -286,6 +292,8 @@ export interface KerAbieProviderProps {
 }
 
 export interface KerAbieContextValue {
+  /** The screens the AI agent asked for, drawn inside the chat window so they appear over it. */
+  agentElement?: React.ReactNode;
   // Chat state
   isOpen: boolean;
   open: () => void;

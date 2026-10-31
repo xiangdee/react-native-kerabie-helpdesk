@@ -13,14 +13,16 @@ interface Props {
   video?: boolean;
   label?: string;
   style?: StyleProp<ViewStyle>;
+  /** Set to false when your app already manages LiveKit's audio session. */
+  manageAudioSession?: boolean;
 }
 
 /**
  * A "Call us" button and the call screen it opens. Renders nothing when calls are off in the dashboard or the plan
  * has no minutes left, so it is safe to leave in your layout.
  */
-export function KerAbieCallButton({ variant = 'button', video = false, label = 'Call us', style }: Props) {
-  const call = useKerAbieCall();
+export function KerAbieCallButton({ variant = 'button', video = false, label = 'Call us', style, manageAudioSession }: Props) {
+  const call = useKerAbieCall({ manageAudioSession });
   const { config } = useKerAbieContext();
   const palette = usePalette(config.theme);
 

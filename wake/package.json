@@ -1,0 +1,6 @@
+{
+  "name": "react-native-kerabie-helpdesk-wake",
+  "private": true,
+  "main": "../src/wake/index.ts",
+  "types": "../src/wake/index.ts"
+}

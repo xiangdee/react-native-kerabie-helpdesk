@@ -32,7 +32,7 @@ function RoundButton({ label, onPress, bg, fg, palette, theme }: { label: string
 }
 
 /** Rendered inside <LiveKitRoom>: the other side's video, the timer and the call controls. */
-function InCall({ call, palette, theme }: { call: KerAbieCall; palette: KerPalette; theme: KerTheme }) {
+function InCall({ call, palette, theme, inRoom, label }: { call: KerAbieCall; palette: KerPalette; theme: KerTheme; inRoom?: React.ReactNode; label?: string }) {
   const { state, hangUp } = call;
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const tracks = useTracks([Track.Source.Camera]);
@@ -46,9 +46,10 @@ function InCall({ call, palette, theme }: { call: KerAbieCall; palette: KerPalet
     return () => clearInterval(timer);
   }, []);
 
-  const who = state.handler === 'AI' ? 'AI assistant' : state.agentName || 'Support';
+  const who = state.handler === 'AI' ? label || 'AI assistant' : state.agentName || 'Support';
   return (
     <>
+      {inRoom}
       <View style={styles.center}>
         {state.video && (remote || local) ? (
           <View style={styles.video}>
@@ -83,7 +84,7 @@ function InCall({ call, palette, theme }: { call: KerAbieCall; palette: KerPalet
  * The call screen: waiting, ringing, the call itself, and how it ended. Shown over the app while a call exists.
  * Use it with `useKerAbieCall()`, or use `<KerAbieCallButton />` which does both.
  */
-export function KerAbieCallModal({ call }: { call: KerAbieCall }) {
+export function KerAbieCallModal({ call, inRoom, label }: { call: KerAbieCall; /** Rendered inside the live call (the AI agent's screens use it). */ inRoom?: React.ReactNode; /** Name shown for the AI, instead of AI assistant. */ label?: string }) {
   const { config } = useKerAbieContext();
   const palette = usePalette(config.theme);
   const { theme } = config;
@@ -108,7 +109,7 @@ export function KerAbieCallModal({ call }: { call: KerAbieCall }) {
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
           onDisconnected={hangUp}
         >
-          <InCall call={call} palette={palette} theme={theme} />
+          <InCall call={call} palette={palette} theme={theme} inRoom={inRoom} label={label} />
         </LiveKitRoom>
       </View>
     );

@@ -701,6 +701,121 @@ If you ask customers for their details before a chat (the pre-chat form in the d
 
 A call goes to every free agent at once; the first to answer wins. When nobody is free, the AI voice agent answers if you turned it on, and otherwise the customer waits in the queue and the call is marked missed after two minutes. A call you reopen the app into is picked up again.
 
+## AI agent for your app (optional)
+
+A voice agent inside your app that does things for your customers: show rice available in Warri, add it to the cart, ask for a saved address, book a pickup at a time they choose, check open orders and rides. It uses the tools you connect to Kerabie (an MCP server or your own endpoints) and asks your app to show screens instead of reading everything out. If it cannot help, it hands the customer to your team with a summary, so nobody repeats themselves.
+
+### What you need
+
+- Calls and the **AI voice agent** turned on in the dashboard, and call minutes on your plan.
+- For **voice**, a **development build**, exactly like calls: the voice agent uses native WebRTC, so it does **not run in Expo Go**. In Expo Go, do not import `react-native-kerabie-helpdesk/calls`. The **chat** agent below needs no native code and runs in Expo Go.
+- Your tools connected in the dashboard (**AI Tools, MCP servers**). For each tool, choose the route:
+  - **Public**: needs no customer, for example searching products. Anyone can use it.
+  - **Secure**: acts as the signed-in customer (cart, orders, addresses, pickups, payments). Kerabie sends their token to your server in the `X-Kerabie-User-Token` header, keeps it encrypted for the length of the call, and never shows it to the AI. Secure tools are only offered while someone is signed in.
+
+### In the chat (works in Expo Go)
+
+The same agent works in the chat window, typed instead of spoken, with no native code. Pass `agent` to the provider:
+
+```tsx
+<KerAbieProvider
+  widgetKey="wk_yourorg_123"
+  agent={{
+    getUserToken: async () => auth.currentToken(),
+    ui: { pick_saved_address: async ({ purpose }) => pickAddress(purpose) },
+    actions: { add_to_cart: { description: 'Adds an item to the cart in the app', parameters: { type: 'object', properties: { itemId: { type: 'string' } }, required: ['itemId'] }, run: async ({ itemId }) => { cart.add(itemId); return 'Added to the cart' } } },
+  }}
+>
+```
+
+The token, screens and actions go along with each message. When the AI needs a screen or an action it asks the app over the chat connection, the screen opens over the chat window, and the answer goes back. Secure tools, the list, confirmation and address box, app actions and the handoff to your team all work the same as in voice. Without `agent` nothing changes.
+
+### Voice (development build)
+
+```tsx
+import { KerAbieAgentButton } from 'react-native-kerabie-helpdesk/calls'
+
+<KerAbieAgentButton
+  name="Kerabie Agent" // optional, shown on the button and the call screen
+  getUserToken={async () => auth.currentToken()} // omit, or return nothing, when nobody is signed in
+  ui={{
+    // Screens that need your data or your design. A list, a confirmation and an address box are built in.
+    pick_saved_address: async ({ purpose }) => pickAddress(purpose),   // resolve with the address id, or 'none' to type a new one
+    pick_schedule: async ({ purpose, earliest }) => pickDateTime(),    // resolve with an ISO 8601 date and time
+    open_screen: async ({ screen }) => { navigation.navigate(screen); return 'opened' },
+  }}
+/>
+```
+
+Each handler shows your screen and resolves with the customer's answer, which the agent reads back. Throw if the customer closes it. The agent only uses the screens you register, so register what your app can show. The built-in ones are:
+
+| Screen | Asked when | Answer |
+| ---- | ---- | ---- |
+| `show_items` | Several results (products, orders, rides) | The tapped id, or `none` |
+| `confirm_action` | Before an order, booking or payment | `yes` or `no` |
+| `request_address_input` | A new address is needed | The typed address |
+| `pick_saved_address` | An address is needed (you provide it) | The address id, or `none` |
+| `pick_schedule` | Something should happen at a time (you provide it) | ISO 8601 date and time |
+| `open_screen` | The customer wants to see rather than hear (you provide it) | `opened` |
+
+Addresses are never taken by voice, because speech recognition gets them wrong.
+
+#### App actions
+
+Some things happen on the device, not on your server: the cart held in your app's state, starting your own checkout. Register them as **actions**. Each one becomes a tool the agent can call (named `action_<name>`), runs in your app, and returns a short result the agent says back.
+
+```tsx
+<KerAbieAgentButton
+  actions={{
+    add_to_cart: {
+      description: 'Adds an item to the cart in the app. Use it when the customer says to add something.',
+      parameters: { type: 'object', properties: { itemId: { type: 'string' }, quantity: { type: 'number' } }, required: ['itemId'] },
+      run: async ({ itemId, quantity = 1 }) => { cart.add(itemId, quantity); return `Added ${quantity} to the cart` },
+    },
+  }}
+/>
+```
+
+Describe each action so the agent knows when to use it, validate the arguments in `run` (stock, price) and throw if it cannot do it. Before an action that places an order or costs money, the agent calls `confirm_action` first, so keep that screen available.
+
+For your own design, use `useKerAbieAgent({ getUserToken, ui, actions })` and render `<KerAbieCallModal call={agent.call} inRoom={agent.inRoom} />`.
+
+### Wake the agent by saying its name (optional)
+
+Customers can start the voice agent by saying its name: "Kerabie Agent", "hi Kerabie Agent", "hello Ted". The name alone is enough; "hi", "hey" and "hello" before it are accepted. Small mishearings of a longer name are forgiven, and the name is whatever you call your agent, so it works for any name.
+
+```tsx
+import { useKerAbieAgent } from 'react-native-kerabie-helpdesk/calls'
+import { useKerAbieWakeWord } from 'react-native-kerabie-helpdesk/wake'
+
+const agent = useKerAbieAgent({ getUserToken, ui, actions })
+useKerAbieWakeWord({
+  name: 'Ted',                                   // the agent's name
+  enabled: agent.call.state.phase === 'idle',    // never listen during a call
+  onWake: agent.start,
+})
+```
+
+What to know before you turn it on:
+
+- It needs `expo-speech-recognition` and a **development build** (not Expo Go). Install it with `npx expo install expo-speech-recognition`, add its config plugin, and give the microphone and speech recognition permission reasons (`NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription` on iOS). The customer is asked the first time.
+- It listens **only while your app is open on screen**, never in the background. iOS does not allow background listening for this, and Android would need a permanent notification.
+- By default it uses recognition that **runs on the phone**, so no audio leaves it. A phone that cannot do that does not listen (`state` is `unsupported`) unless you pass `onDeviceOnly: false`, which lets the phone's speech service process the audio.
+- The microphone is on while it listens, so the system shows its microphone indicator and the battery is used. Offer it as a setting the customer turns on, not as the default.
+- It can mishear, and it can wake when someone says the name in a conversation. Pass the spellings your engine produces in `aliases` if it keeps mishearing the name.
+- Starting the call takes a second or two, so the agent greets the customer first. It stops listening the moment the name is heard, because the call needs the microphone.
+- `state` tells you why it is not listening: `off`, `asking` (permission), `listening`, `denied` or `unsupported`.
+
+### If your app already has LiveKit or another calling library
+
+Reuse an existing LiveKit instead of installing a second copy, and keep `livekit-client` 2.23+, `@livekit/react-native` 3.1+ and `@livekit/react-native-webrtc` 150.1+. The SDK skips LiveKit's global setup when your app already did it. If your app manages LiveKit's audio session itself, pass `manageAudioSession={false}` to `KerAbieAgentButton` or `KerAbieCallButton` so a Kerabie call does not stop yours.
+
+If the app uses another calling or WebRTC library (Zego, Agora, Twilio, Daily, plain `react-native-webrtc`), do not add LiveKit to it without testing: two WebRTC stacks can fail to build or clash at runtime. Use the chat agent (the provider's `agent` prop, no native code) first, then add voice as its own build.
+
+### Build the tools well
+
+Tools are what make the agent useful, so give it everything it needs. Return short, plain results. Paginate lists. Make writes safe to repeat (an idempotency key). Accept times with a timezone and say what is available when a time is taken. Mark anything that changes something or touches the customer's own data as **secure**. The Kerabie MCP (`@kerabie/mcp`) has a build playbook with a checklist for scheduling, addresses, confirmations and support handoff: ask your coding agent to run `plan_agent_for_app`.
+
 ## Notification setup
 
 Kerabie push notifications deep-link directly to the conversation that triggered them.

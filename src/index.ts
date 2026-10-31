@@ -25,6 +25,7 @@ export { TicketDetailScreen as KerAbieTicketDetailScreen } from './components/Ti
 export { Skeleton as KerAbieSkeleton, SkeletonRows as KerAbieSkeletonRows } from './components/Skeleton';
 
 // Types
+export type { KerAbieAgentConfig, AgentAction, AgentActions, AgentItem, AgentUiHandler, AgentUiHandlers, AgentUiPayloads, AgentUiToolName, GetAgentUserToken } from './agent/types';
 export type {
   KerAbieProviderProps,
   KerAbieContextValue,
