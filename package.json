@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/wakeWord.test.ts test/contextMessage.test.ts"
+    "test": "node --test test/wakeWord.test.ts test/contextMessage.test.ts test/person.test.ts"
   },
   "peerDependencies": {
     "@livekit/react-native": ">=3.1.0",

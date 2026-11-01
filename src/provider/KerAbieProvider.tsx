@@ -26,6 +26,7 @@ import { WidgetShell } from '../components/WidgetShell';
 import { useAgentUi } from '../agent/AgentUi';
 import { CampaignBanner } from '../components/CampaignBanner';
 import { contextMessage } from './contextMessage';
+import { personOf } from './person';
 import { useCampaignTriggers } from '../hooks/useCampaignTriggers';
 import { DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from '../theme/palette';
 
@@ -137,6 +138,8 @@ export function KerAbieProvider({
 
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [sessionId, setSessionId] = useState<string>('');
+  // Bumped to set the session up again from scratch (a different person signed in): a new session id, a new connection.
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const [currentUser, setCurrentUser] = useState<KerUser | null>(initialUser ?? null);
 
   // The user's picture (`avatarUrl`): the server fetches it, resizes it and keeps its own copy. A user given at start
@@ -356,7 +359,7 @@ export function KerAbieProvider({
     })();
 
     return () => { socketService.disconnect(); };
-  }, [widgetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [widgetKey, sessionEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Socket events
   useEffect(() => {
@@ -657,12 +660,38 @@ export function KerAbieProvider({
     [currentUser],
   );
 
+  // A session belongs to one person. When someone else signs in (or nobody does) after a signed-in person, nothing of the
+  // earlier one may carry over: the session id, the conversations and the connection are all started again.
+  const resetSession = useCallback(async () => {
+    setSessionId(''); // until the new one exists, nothing is sent for the new person on the old session
+    identifiedKey.current = '';
+    setMessages([]);
+    setConversations([]);
+    setConversationsLoaded(false);
+    setCurrentConversation(null);
+    setChatTarget(null);
+    setChatDraft(null);
+    setChatPrefill(null);
+    setUnreadCount(0);
+    await Promise.all([
+      StorageService.remove('session_id'),
+      StorageService.remove('cache:conversations:' + widgetKey),
+    ]).catch(() => {});
+    setSessionEpoch((n) => n + 1);
+  }, [widgetKey]);
+
   // The `user` prop is followed after mount: signing in gives the person's name to the team, signing out forgets it.
   const userKey = initialUser ? JSON.stringify(initialUser) : '';
   const appliedUserKey = useRef(userKey);
+  const appliedPerson = useRef(personOf(initialUser));
   useEffect(() => {
     if (userKey === appliedUserKey.current) return;
     appliedUserKey.current = userKey;
+    const before = appliedPerson.current;
+    const after = personOf(initialUser);
+    appliedPerson.current = after;
+    // Anonymous to signed in keeps the session (the chat so far is theirs); signed in to anyone else starts over.
+    if (before && before !== after) void resetSession();
     if (initialUser) setUser(initialUser);
     else clearUser();
   }, [userKey]); // eslint-disable-line react-hooks/exhaustive-deps
