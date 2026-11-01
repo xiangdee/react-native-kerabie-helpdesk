@@ -135,11 +135,28 @@ export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: Props) {
       parts = [outline(12, 12, 16, 16, 2), bar(12, 9, 16), bar(12, 12.5, 7, 0, true)];
       break;
     case 'phone':
-      // A handset: a pill turned on its diagonal with a heavier earpiece and mouthpiece at the ends.
+      // A handset: a quarter of a ring (the ring is cut by a clipping box) bulging to the lower left, with an earpiece
+      // at its top end and a mouthpiece at its bottom end, like the usual call icon.
       parts = [
-        box(12, 12, 6, 15, { backgroundColor: color, borderRadius: 3 * u }, 45),
-        box(7.5, 16.5, 7, 7, { backgroundColor: color, borderRadius: 2.5 * u }, 45),
-        box(16.5, 7.5, 7, 7, { backgroundColor: color, borderRadius: 2.5 * u }, 45),
+        <View
+          key="phone-arc"
+          style={{ position: 'absolute', left: 5 * u, top: 5 * u, width: 13 * u, height: 13 * u, overflow: 'hidden' }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: -13 * u,
+              width: 26 * u,
+              height: 26 * u,
+              borderRadius: 13 * u,
+              borderWidth: t * 1.6,
+              borderColor: color,
+            }}
+          />
+        </View>,
+        box(7.6, 6.4, 5.6, 3.6, { backgroundColor: color, borderRadius: 1.8 * u }),
+        box(16.6, 16.6, 3.6, 5.6, { backgroundColor: color, borderRadius: 1.8 * u }),
       ];
       break;
     case 'video':
