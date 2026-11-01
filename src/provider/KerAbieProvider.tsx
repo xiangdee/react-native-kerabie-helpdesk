@@ -144,6 +144,17 @@ export function KerAbieProvider({
   useEffect(() => {
     if (sessionId && avatarUrl) ApiService.post('/public/widget/identify', { user: { avatarUrl } }).catch(() => {});
   }, [sessionId, avatarUrl]);
+
+  // The user the server already has: the one the socket handshake carries. A user that arrives or changes later (the
+  // app loads the signed-in person after the provider mounted, or calls setUser) is sent once the session exists.
+  const identifiedKey = useRef(initialUser ? JSON.stringify(initialUser) : '');
+  useEffect(() => {
+    if (!sessionId || !currentUser) return;
+    const key = JSON.stringify(currentUser);
+    if (key === identifiedKey.current) return;
+    identifiedKey.current = key;
+    ApiService.post('/public/widget/identify', { user: currentUser }).catch(() => {});
+  }, [sessionId, currentUser]);
   const [conversations, setConversations] = useState<KerConversationSummary[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversation, setCurrentConversation] = useState<KerConversation | null>(null);
@@ -623,11 +634,8 @@ export function KerAbieProvider({
     (user: KerUser) => {
       setCurrentUser(user);
       StorageService.set('user', user);
-      if (sessionId) {
-        ApiService.post('/public/widget/identify', { user }).catch(() => {});
-      }
     },
-    [sessionId],
+    [],
   );
 
   const clearUser = useCallback(() => {
@@ -642,10 +650,19 @@ export function KerAbieProvider({
       const attrs = currentUser?.customAttributes ?? {};
       const updated = { ...currentUser, customAttributes: { ...attrs, [key]: value } };
       setCurrentUser(updated as KerUser);
-      ApiService.post('/public/widget/identify', { user: updated }).catch(() => {});
     },
     [currentUser],
   );
+
+  // The `user` prop is followed after mount: signing in gives the person's name to the team, signing out forgets it.
+  const userKey = initialUser ? JSON.stringify(initialUser) : '';
+  const appliedUserKey = useRef(userKey);
+  useEffect(() => {
+    if (userKey === appliedUserKey.current) return;
+    appliedUserKey.current = userKey;
+    if (initialUser) setUser(initialUser);
+    else clearUser();
+  }, [userKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const requestNotificationPermission = useCallback(async () => {
     const granted = await notificationAdapter.requestPermission();
