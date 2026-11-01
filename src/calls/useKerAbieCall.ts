@@ -118,8 +118,10 @@ export function useKerAbieCall(options?: {
   const connected = state.phase === 'connected';
   useEffect(() => {
     if (!connected || !manageAudioSession) return;
-    AudioSession.startAudioSession();
-    return () => { AudioSession.stopAudioSession(); };
+    // Both return promises. iOS refuses to deactivate the session while other audio still runs (the app's own sounds or
+    // another call library), which is harmless once the call is over, so a failure must not surface as an unhandled rejection.
+    AudioSession.startAudioSession().catch(() => {});
+    return () => { AudioSession.stopAudioSession().catch(() => {}); };
   }, [connected, manageAudioSession]);
 
   const placeCall = useCallback(async (video: boolean) => {

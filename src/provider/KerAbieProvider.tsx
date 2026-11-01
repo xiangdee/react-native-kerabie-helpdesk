@@ -145,9 +145,10 @@ export function KerAbieProvider({
     if (sessionId && avatarUrl) ApiService.post('/public/widget/identify', { user: { avatarUrl } }).catch(() => {});
   }, [sessionId, avatarUrl]);
 
-  // The user the server already has: the one the socket handshake carries. A user that arrives or changes later (the
-  // app loads the signed-in person after the provider mounted, or calls setUser) is sent once the session exists.
-  const identifiedKey = useRef(initialUser ? JSON.stringify(initialUser) : '');
+  // The user the server has stored on the contact. The socket handshake only carries the name and email for the live
+  // session; the contact itself is written by identify. So the user is sent once the session exists, whether it was there
+  // from the start or arrived or changed later (the app loads the signed-in person after the provider mounted, setUser).
+  const identifiedKey = useRef('');
   useEffect(() => {
     if (!sessionId || !currentUser) return;
     const key = JSON.stringify(currentUser);
