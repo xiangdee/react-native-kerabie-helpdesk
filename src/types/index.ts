@@ -29,6 +29,8 @@ export interface KerUser {
   email?: string;
   phone?: string;
   role?: string;
+  /** A link (https) to the user's picture, shown to your team. We keep our own resized copy; the link itself is never shown. */
+  avatarUrl?: string;
   customAttributes?: Record<string, string>;
 }
 

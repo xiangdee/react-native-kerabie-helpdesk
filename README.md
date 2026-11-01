@@ -285,6 +285,7 @@ const {
 | `email` | `string` | Visitor email. |
 | `phone` | `string` | Visitor phone number. |
 | `role` | `string` | e.g. `"customer"`, `"driver"`, `"admin"`. |
+| `avatarUrl` | `string` | Optional https link to the user's picture. Kerabie fetches it once, keeps its own resized copy and shows that to your team (never your link). Without it, agents see initials. |
 | `customAttributes` | `Record<string, string>` | Any extra key-value pairs shown in the agent sidebar. |
 
 **Example:**

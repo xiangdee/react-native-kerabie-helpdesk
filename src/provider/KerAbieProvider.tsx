@@ -137,6 +137,13 @@ export function KerAbieProvider({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [sessionId, setSessionId] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<KerUser | null>(initialUser ?? null);
+
+  // The user's picture (`avatarUrl`): the server fetches it, resizes it and keeps its own copy. A user given at start
+  // reaches the server only through the socket (name and email), so the link is sent once the session exists.
+  const avatarUrl = currentUser?.avatarUrl;
+  useEffect(() => {
+    if (sessionId && avatarUrl) ApiService.post('/public/widget/identify', { user: { avatarUrl } }).catch(() => {});
+  }, [sessionId, avatarUrl]);
   const [conversations, setConversations] = useState<KerConversationSummary[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversation, setCurrentConversation] = useState<KerConversation | null>(null);
