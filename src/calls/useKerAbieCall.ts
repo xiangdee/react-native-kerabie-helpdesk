@@ -68,8 +68,16 @@ export function useKerAbieCall(options?: {
    * manages LiveKit's audio session itself, so a Kerabie call does not stop yours.
    */
   manageAudioSession?: boolean;
+  /**
+   * True once your app has ANSWERED another call (Zego, Agora, CallKeep, your own LiveKit...). Two calls cannot share the
+   * microphone, so a Kerabie call will not start while it is true, and one in progress ends when it becomes true. Set it
+   * when the customer takes the other call, not while it is only ringing: let them choose first. Only your app can see
+   * its other calls, so your app sets this.
+   */
+  otherCallActive?: boolean;
 }) {
   const manageAudioSession = options?.manageAudioSession ?? true;
+  const blocked = options?.otherCallActive ?? false;
   // Read when a call is placed, so the newest token is used without rebuilding the callbacks.
   const prepare = useRef(options?.prepare);
   prepare.current = options?.prepare;
@@ -126,14 +134,14 @@ export function useKerAbieCall(options?: {
   }, [videoAvailable]);
 
   const start = useCallback(async (video = false) => {
-    if (!available) return;
+    if (!available || blocked) return;
     // The org asks every visitor for details before a chat. A call asks the same, once.
     if (preChat.needsDetails) {
       setState({ ...IDLE, phase: 'details', video: video && videoAvailable });
       return;
     }
     await placeCall(video);
-  }, [available, videoAvailable, preChat.needsDetails, placeCall]);
+  }, [available, blocked, videoAvailable, preChat.needsDetails, placeCall]);
 
   /** The details were filled in: save them and place the call the visitor asked for. */
   const submitDetails = useCallback((answers: Record<string, string>) => {
@@ -141,16 +149,24 @@ export function useKerAbieCall(options?: {
     return placeCall(state.video);
   }, [preChat, placeCall, state.video]);
 
-  const hangUp = useCallback(async () => {
+  const endCall = useCallback(async (reason?: string) => {
     const id = callIdRef.current;
-    setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'ended', endReason: s.phase === 'connected' ? 'hangup' : 'cancelled', livekit: null }));
+    setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'ended', endReason: reason ?? (s.phase === 'connected' ? 'hangup' : 'cancelled'), livekit: null }));
     if (id !== null) await CallService.end(id).catch(() => {});
   }, []);
+
+  /** Ends the call, or cancels it before it is answered. */
+  const hangUp = useCallback(() => endCall(), [endCall]);
+
+  // The app's own call started: this one steps aside, so the microphone and the audio session are the other call's.
+  useEffect(() => {
+    if (blocked && callIdRef.current !== null && state.phase !== 'idle' && state.phase !== 'ended') void endCall('other_call');
+  }, [blocked, state.phase, endCall]);
 
   /** Closes the call screen once the call is over. */
   const dismiss = useCallback(() => setState(IDLE), []);
 
-  return { available, videoAvailable, state, start, submitDetails, hangUp, dismiss };
+  return { available, videoAvailable, blocked, state, start, submitDetails, hangUp, dismiss };
 }
 
 export type KerAbieCall = ReturnType<typeof useKerAbieCall>;

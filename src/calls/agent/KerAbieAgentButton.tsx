@@ -13,14 +13,16 @@ interface Props extends KerAbieAgentOptions {
   style?: StyleProp<ViewStyle>;
   /** Set to false when your app already manages LiveKit's audio session. */
   manageAudioSession?: boolean;
+  /** True once your app has answered another call (not while it only rings). The button is disabled and a Kerabie call in progress ends. */
+  otherCallActive?: boolean;
 }
 
 /**
  * A button that starts the voice agent, and the call screen it opens. Renders nothing when calls or the AI voice agent
  * are off in the dashboard, so it is safe to leave in your layout.
  */
-export function KerAbieAgentButton({ name = DEFAULT_AGENT_NAME, label, style, getUserToken, ui, actions, manageAudioSession }: Props) {
-  const agent = useKerAbieAgent({ getUserToken, ui, actions, manageAudioSession });
+export function KerAbieAgentButton({ name = DEFAULT_AGENT_NAME, label, style, getUserToken, ui, actions, manageAudioSession, otherCallActive }: Props) {
+  const agent = useKerAbieAgent({ getUserToken, ui, actions, manageAudioSession, otherCallActive });
   const { config } = useKerAbieContext();
   const palette = usePalette(config.theme);
 
@@ -29,7 +31,7 @@ export function KerAbieAgentButton({ name = DEFAULT_AGENT_NAME, label, style, ge
       {agent.available && (
         <TouchableOpacity
           onPress={agent.start}
-          disabled={agent.call.state.phase !== 'idle'}
+          disabled={agent.call.state.phase !== 'idle' || agent.call.blocked}
           accessibilityRole="button"
           accessibilityLabel={label ?? `Talk to ${name}`}
           style={[styles.button, { backgroundColor: palette.primary }, style]}

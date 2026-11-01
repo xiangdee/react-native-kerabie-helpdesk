@@ -19,6 +19,7 @@ const ENDED_TEXT: Record<string, string> = {
   declined: 'Nobody was available to take your call. Please try again, or send us a message.',
   limit: 'The call reached its time limit.',
   connection_lost: 'The call was cut off. Please try again.',
+  other_call: 'This call ended because another call started.',
 };
 
 function RoundButton({ label, onPress, bg, fg, palette, theme }: { label: string; onPress: () => void; bg: string; fg: string; palette: KerPalette; theme: KerTheme }) {

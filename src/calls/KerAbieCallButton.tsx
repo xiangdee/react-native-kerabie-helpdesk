@@ -15,14 +15,16 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   /** Set to false when your app already manages LiveKit's audio session. */
   manageAudioSession?: boolean;
+  /** True once your app has answered another call (not while it only rings). The button is disabled and a Kerabie call in progress ends. */
+  otherCallActive?: boolean;
 }
 
 /**
  * A "Call us" button and the call screen it opens. Renders nothing when calls are off in the dashboard or the plan
  * has no minutes left, so it is safe to leave in your layout.
  */
-export function KerAbieCallButton({ variant = 'button', video = false, label = 'Call us', style, manageAudioSession }: Props) {
-  const call = useKerAbieCall({ manageAudioSession });
+export function KerAbieCallButton({ variant = 'button', video = false, label = 'Call us', style, manageAudioSession, otherCallActive }: Props) {
+  const call = useKerAbieCall({ manageAudioSession, otherCallActive });
   const { config } = useKerAbieContext();
   const palette = usePalette(config.theme);
 
@@ -32,11 +34,11 @@ export function KerAbieCallButton({ variant = 'button', video = false, label = '
       <>
         {call.available && (
           <>
-            <TouchableOpacity onPress={() => call.start(false)} disabled={busy} accessibilityRole="button" accessibilityLabel="Call us" style={[styles.icon, style]}>
+            <TouchableOpacity onPress={() => call.start(false)} disabled={busy || call.blocked} accessibilityRole="button" accessibilityLabel="Call us" style={[styles.icon, style]}>
               <Icon name="phone" size={19} color={palette.textMuted} />
             </TouchableOpacity>
             {call.videoAvailable && (
-              <TouchableOpacity onPress={() => call.start(true)} disabled={busy} accessibilityRole="button" accessibilityLabel="Video call" style={[styles.icon, style]}>
+              <TouchableOpacity onPress={() => call.start(true)} disabled={busy || call.blocked} accessibilityRole="button" accessibilityLabel="Video call" style={[styles.icon, style]}>
                 <Icon name="video" size={21} color={palette.textMuted} />
               </TouchableOpacity>
             )}
@@ -52,7 +54,7 @@ export function KerAbieCallButton({ variant = 'button', video = false, label = '
       {call.available && (
         <TouchableOpacity
           onPress={() => call.start(video)}
-          disabled={call.state.phase !== 'idle'}
+          disabled={call.state.phase !== 'idle' || call.blocked}
           accessibilityRole="button"
           accessibilityLabel={label}
           style={[styles.button, { backgroundColor: palette.primary }, style]}

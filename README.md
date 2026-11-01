@@ -812,6 +812,24 @@ Reuse an existing LiveKit instead of installing a second copy, and keep `livekit
 
 If the app uses another calling or WebRTC library (Zego, Agora, Twilio, Daily, plain `react-native-webrtc`), do not add LiveKit to it without testing: two WebRTC stacks can fail to build or clash at runtime. Use the chat agent (the provider's `agent` prop, no native code) first, then add voice as its own build.
 
+### One call at a time
+
+Two calls cannot share the microphone, and only your app can see its other calls (Zego, Agora, CallKeep, your own LiveKit). The SDK cannot detect them, so your app tells it, with one flag:
+
+```tsx
+<KerAbieAgentButton otherCallActive={otherCall?.status === 'answered'} />
+useKerAbieWakeWord({ name: 'Ted', enabled: idle && !otherCall, onWake: agent.start })
+```
+
+How it should go:
+
+1. The other call **rings**: show your own choice (answer or decline). Leave `otherCallActive` false. Nothing about the Kerabie call changes yet, so the customer decides.
+2. The customer **answers** it: set `otherCallActive` to true. A Kerabie call in progress ends, with the message "This call ended because another call started" (`endReason` is `other_call`). An AI agent call loses nothing, because the customer can ask again when they are done.
+3. While it is true, the Kerabie buttons are disabled, a new Kerabie call will not start, and the wake word should be off (pass `enabled: false`).
+4. The other call **ends**: set it back to false.
+
+What this does not do: it does not put a Kerabie call **on hold** and bring it back afterwards. A held call keeps running on Kerabie's side (the minutes count, and the person or the AI on the other end hears silence), and holding audio correctly differs on every phone, so it ends instead. If you never set the flag, nothing stops two calls overlapping.
+
 ### Build the tools well
 
 Tools are what make the agent useful, so give it everything it needs. Return short, plain results. Paginate lists. Make writes safe to repeat (an idempotency key). Accept times with a timezone and say what is available when a time is taken. Mark anything that changes something or touches the customer's own data as **secure**. The Kerabie MCP (`@kerabie/mcp`) has a build playbook with a checklist for scheduling, addresses, confirmations and support handoff: ask your coding agent to run `plan_agent_for_app`.

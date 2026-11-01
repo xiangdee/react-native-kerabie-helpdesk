@@ -14,7 +14,7 @@ export type KerAbieAgentOptions = KerAbieAgentConfig;
  * screens. Needs the LiveKit packages and a development build (not Expo Go), like calls. Use it through
  * `<KerAbieAgentButton />`, or render `<KerAbieCallModal call={agent.call} inRoom={agent.inRoom} />` yourself.
  */
-export function useKerAbieAgent({ getUserToken, ui, actions, manageAudioSession }: KerAbieAgentOptions & { manageAudioSession?: boolean } = {}) {
+export function useKerAbieAgent({ getUserToken, ui, actions, manageAudioSession, otherCallActive }: KerAbieAgentOptions & { manageAudioSession?: boolean; otherCallActive?: boolean } = {}) {
   const { handlers, element, names } = useAgentUi(ui);
 
   const prepare = useCallback(async () => {
@@ -23,7 +23,7 @@ export function useKerAbieAgent({ getUserToken, ui, actions, manageAudioSession 
     return { userToken: token, uiTools: names, appActions };
   }, [getUserToken, names, actions]);
 
-  const call = useKerAbieCall({ prepare, manageAudioSession });
+  const call = useKerAbieCall({ prepare, manageAudioSession, otherCallActive });
 
   const inRoom = useMemo(
     () => (
