@@ -954,6 +954,8 @@ Open the chat widget with a pre-loaded context so agents immediately see what th
 
 Use `openWithContext` from `useKerAbieContext()` (or `useKerAbieChat()`). The context is sent to the Kerabie backend and shown to the agent in the conversation.
 
+The tap opens a **new chat directly** (not the Home screen), with what it is about already in the message box: `I need help with <title> (ref <id>).` and the first six simple values of `data`, one per line. The customer adds what went wrong and sends it. To use your own wording, pass `message`; pass `openChat: false` to only record the context.
+
 ### Product click
 
 ```tsx

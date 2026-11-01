@@ -29,14 +29,14 @@ export function WidgetShell({ onClose, theme, chatSettings }: Props) {
   const keyboardHeight = useKeyboardHeight();
   const single = chatSettings?.layout === 'single';
   const showTabs = !single || !!chatSettings?.showNavigation;
-  const [tab, setTab] = useState<WidgetTab>(single || ctx.chatDraft || ctx.chatTarget ? 'chat' : 'home');
+  const [tab, setTab] = useState<WidgetTab>(single || ctx.chatDraft || ctx.chatPrefill || ctx.chatTarget ? 'chat' : 'home');
   // Inside the Chat tab of the full layout: the list of chats, or one open chat.
-  const [chatOpen, setChatOpen] = useState(single || !!ctx.chatDraft || !!ctx.chatTarget);
+  const [chatOpen, setChatOpen] = useState(single || !!ctx.chatDraft || !!ctx.chatPrefill || !!ctx.chatTarget);
 
-  // A search-bar draft goes straight to a chat.
+  // A search-bar draft, or a "get help with this" tap, goes straight to a chat.
   useEffect(() => {
-    if (ctx.chatDraft) { setTab('chat'); setChatOpen(true); }
-  }, [ctx.chatDraft]);
+    if (ctx.chatDraft || ctx.chatPrefill) { setTab('chat'); setChatOpen(true); }
+  }, [ctx.chatDraft, ctx.chatPrefill]);
 
   // A tapped push notification or deep link lands on its conversation, not on Home.
   const { chatTarget, clearChatTarget } = ctx;

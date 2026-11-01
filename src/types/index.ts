@@ -353,6 +353,9 @@ export interface KerAbieContextValue {
   chatDraft: { text: string } | null;
   openWithDraft: (draft: { text: string }) => void;
   clearChatDraft: () => void;
+  /** Text a "get help with this" tap leaves in the message box of the new chat, for the customer to add to and send. */
+  chatPrefill: { text: string } | null;
+  clearChatPrefill: () => void;
 
   // Contextual chat
   openWithContext: (context: KerChatContext) => void;
@@ -399,4 +402,6 @@ export interface KerChatContext {
   title?: string;                   // human-readable label shown to the agent
   data?: Record<string, any>;       // arbitrary key-value payload
   openChat?: boolean;               // auto-open the chat UI (default: true)
+  /** Text for the message box of the new chat that opens. Default: what it is about and its main details, built from the fields above. */
+  message?: string;
 }

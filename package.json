@@ -1,6 +1,6 @@
 {
   "name": "react-native-kerabie-helpdesk",
-  "version": "2.5.4",
+  "version": "2.6.0",
   "description": "Embed the Kerabie help desk into any React Native / Expo app",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/wakeWord.test.ts"
+    "test": "node --test test/wakeWord.test.ts test/contextMessage.test.ts"
   },
   "peerDependencies": {
     "@livekit/react-native": ">=3.1.0",

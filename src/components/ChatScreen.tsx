@@ -105,6 +105,12 @@ export function ChatScreen({ onClose, theme, chatSettings, onBack }: Props) {
     if (staged) void sendNow(draftText.trim());
     else if (draftText.trim()) void sendNow(draftText.trim());
   }, [ctx.chatDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A "get help with this" tap: what it is about waits in the message box for the customer to add to and send.
+  useEffect(() => {
+    if (!ctx.chatPrefill) return;
+    setText(ctx.chatPrefill.text);
+    ctx.clearChatPrefill();
+  }, [ctx.chatPrefill]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleAttach = useCallback(() => setShowAttachChooser((v) => !v), []);
 
   const pickAttachment = useCallback(

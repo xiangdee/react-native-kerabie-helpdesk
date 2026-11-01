@@ -25,6 +25,7 @@ import { KerAbieDeepLinkService } from '../services/deeplink.service';
 import { WidgetShell } from '../components/WidgetShell';
 import { useAgentUi } from '../agent/AgentUi';
 import { CampaignBanner } from '../components/CampaignBanner';
+import { contextMessage } from './contextMessage';
 import { useCampaignTriggers } from '../hooks/useCampaignTriggers';
 import { DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from '../theme/palette';
 
@@ -163,6 +164,7 @@ export function KerAbieProvider({
   const [isTyping, setIsTyping] = useState(false);
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [chatDraft, setChatDraft] = useState<{ text: string } | null>(null);
+  const [chatPrefill, setChatPrefill] = useState<{ text: string } | null>(null);
   const [onlineAgents, setOnlineAgents] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -695,23 +697,27 @@ export function KerAbieProvider({
     setIsOpen(true);
   }, []);
   const clearChatDraft = useCallback(() => setChatDraft(null), []);
+  const clearChatPrefill = useCallback(() => setChatPrefill(null), []);
 
   const openWithContext = useCallback((context: KerChatContext) => {
-    if (!sessionId) return;
-
-    // Fire-and-forget: send context to backend
-    ApiService.post('/public/widget/context', {
-      contextType: context.type,
-      contextId: context.id ?? null,
-      contextTitle: context.title ?? null,
-      contextData: context.data ?? null,
-    }).catch(() => {});
+    // Fire-and-forget: send context to backend (needs the session; the chat still opens without it)
+    if (sessionId) {
+      ApiService.post('/public/widget/context', {
+        contextType: context.type,
+        contextId: context.id ?? null,
+        contextTitle: context.title ?? null,
+        contextData: context.data ?? null,
+      }).catch(() => {});
+    }
 
     if (context.openChat !== false) {
+      // Straight into a new chat (the single layout has just the one) with what it is about in the message box.
+      if (mergedChatSettings.layout !== 'single') startNewConversation();
+      setChatPrefill({ text: contextMessage(context) });
       setIsOpen(true);
       onOpenChat?.();
     }
-  }, [sessionId, onOpenChat]);
+  }, [sessionId, onOpenChat, mergedChatSettings.layout, startNewConversation]);
 
   const ctx: KerAbieContextValue = {
     isOpen,
@@ -751,6 +757,8 @@ export function KerAbieProvider({
     chatDraft,
     openWithDraft,
     clearChatDraft,
+    chatPrefill,
+    clearChatPrefill,
     openWithContext,
     callAction,
     agentElement: agentUi.element,
