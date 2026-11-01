@@ -86,13 +86,15 @@ export function ConversationsScreen({ theme, palette, chatSettings, onOpen, onNe
         <ScrollView showsVerticalScrollIndicator={false}>
           {list.map((c) => {
             const avatar = c.avatar || chatSettings?.logoUrl;
+            // A logo (not a person's photo) is usually wide, and often light or transparent: it is shown whole, on the brand colour.
+            const isLogo = !c.avatar && !!chatSettings?.logoUrl;
             const name = c.name || fallbackName;
             return (
               <TouchableOpacity key={c.id} style={styles.row} onPress={() => onOpen(c.id)} activeOpacity={0.7}>
                 <View>
-                  <View style={[styles.avatar, { backgroundColor: palette.surface }]}>
+                  <View style={[styles.avatar, { backgroundColor: isLogo ? palette.accent : palette.surface }]}>
                     {avatar ? (
-                      <Image source={{ uri: avatar }} style={styles.avatarImg} />
+                      <Image source={{ uri: avatar }} style={isLogo ? styles.avatarLogo : styles.avatarImg} resizeMode={isLogo ? 'contain' : 'cover'} />
                     ) : (
                       <Text style={[styles.avatarLetter, { color: palette.accent, fontFamily: font }]}>{name.charAt(0).toUpperCase()}</Text>
                     )}
@@ -128,6 +130,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 44, height: 44 },
+  avatarLogo: { width: 34, height: 34 },
   avatarLetter: { fontSize: 17, fontWeight: '700' },
   online: { position: 'absolute', right: 0, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22c55e', borderWidth: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

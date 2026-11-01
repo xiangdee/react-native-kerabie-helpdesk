@@ -49,7 +49,7 @@ export function HomeScreen({ theme, palette, chatSettings, onClose, onChat }: Pr
           <View style={styles.headerRow}>
             <View style={[styles.logo, { backgroundColor: palette.onPrimary }]}>
               {chatSettings?.logoUrl ? (
-                <Image source={{ uri: chatSettings.logoUrl }} style={styles.logoImg} />
+                <Image source={{ uri: chatSettings.logoUrl }} style={styles.logoImg} resizeMode="contain" />
               ) : (
                 <Text style={[styles.logoLetter, { color: palette.primary, fontFamily: font }]}>{name.charAt(0).toUpperCase()}</Text>
               )}
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 56, overflow: 'hidden' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  logoImg: { width: 36, height: 36 },
+  logoImg: { width: 30, height: 30 },
   logoLetter: { fontSize: 16, fontWeight: '800' },
   name: { flex: 1, fontSize: 16, fontWeight: '700' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14 },
