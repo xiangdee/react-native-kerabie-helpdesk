@@ -108,6 +108,10 @@ class KerSocketService {
     this.socket.on('call:ended', (data: any) => this.emit('call_ended', data));
     this.socket.on('chat:message:start', (data: any) => this.emit('message_start', data));
     this.socket.on('chat:message:chunk', (data: any) => this.emit('message_chunk', data));
+    // Live voice with the AI (see src/voice).
+    for (const event of ['ready', 'state', 'transcript', 'audio', 'interrupted', 'ended', 'error'] as const) {
+      this.socket.on(`voice:${event}`, (data: any) => this.emit(`voice_${event}`, data));
+    }
   }
 
   disconnect() {
@@ -167,6 +171,22 @@ class KerSocketService {
   /** Sets where the agent's details come from, or null when the app has no agent. */
   setAgentSource(source: (() => Promise<AgentPayload | undefined>) | null) {
     this.agentSource = source;
+  }
+
+  /** Starts a live voice session with the AI. The server answers with `voice_ready`, or `voice_error` and the reason. */
+  async voiceStart() {
+    let agent: AgentPayload | undefined;
+    try { agent = await this.agentSource?.(); } catch { agent = undefined; }
+    this.socket?.emit('voice:start', this.agentSource ? { agent: agent ?? {} } : {});
+  }
+
+  /** The customer's speech: 16-bit little-endian PCM at 16 kHz, mono. */
+  voiceAudio(pcm: Uint8Array) {
+    this.socket?.volatile.emit('voice:audio', pcm);
+  }
+
+  voiceStop() {
+    this.socket?.emit('voice:stop');
   }
 
   /** Answers the agent's request for a screen or action. */

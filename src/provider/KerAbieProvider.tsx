@@ -26,7 +26,7 @@ import { WidgetShell } from '../components/WidgetShell';
 import { useAgentUi } from '../agent/AgentUi';
 import { CampaignBanner } from '../components/CampaignBanner';
 import { contextMessage } from './contextMessage';
-import { personOf } from './person';
+import { personOf, sessionIsOthers } from './person';
 import { useCampaignTriggers } from '../hooks/useCampaignTriggers';
 import { DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from '../theme/palette';
 
@@ -158,8 +158,14 @@ export function KerAbieProvider({
     const key = JSON.stringify(currentUser);
     if (key === identifiedKey.current) return;
     identifiedKey.current = key;
-    ApiService.post('/public/widget/identify', { user: currentUser }).catch(() => {});
-  }, [sessionId, currentUser]);
+    ApiService.post<{ sessionId?: string }>('/public/widget/identify', { user: currentUser })
+      .then((answer) => {
+        // A session that belonged to someone else: the server gave this person a new one.
+        if (answer?.sessionId && answer.sessionId !== sessionId) void resetSession({ sessionId: answer.sessionId, person: personOf(currentUser) });
+        else StorageService.set('session_person', personOf(currentUser)).catch(() => {});
+      })
+      .catch(() => {});
+  }, [sessionId, currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
   const [conversations, setConversations] = useState<KerConversationSummary[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversation, setCurrentConversation] = useState<KerConversation | null>(null);
@@ -302,11 +308,21 @@ export function KerAbieProvider({
   useEffect(() => {
     (async () => {
       let sid = await StorageService.get<string>('session_id');
+      const person = personOf(currentUser);
+
+      // A session belongs to one person. One kept for a signed-in person is not used by anyone else, nor by nobody after
+      // them (the app was closed between a sign-out and the next sign-in): it is dropped, with its notifications.
+      const savedPerson = await StorageService.get<string>('session_person');
+      if (sid && sessionIsOthers(savedPerson, person)) {
+        ApiService.init({ widgetKey, sessionId: sid });
+        await ApiService.delete('/public/widget/push-token').catch(() => {});
+        await StorageService.remove('cache:conversations:' + widgetKey).catch(() => {});
+        sid = null;
+      }
       if (!sid) {
         sid = generateSessionId();
         await StorageService.set('session_id', sid);
       }
-      setSessionId(sid);
 
       try {
         const cached = await StorageService.get<any>('widget_settings:' + widgetKey);
@@ -314,6 +330,24 @@ export function KerAbieProvider({
       } catch {}
 
       ApiService.init({ widgetKey, sessionId: sid });
+
+      // The server decides whose the session is: it answers with the session this person must use, a new one when the one
+      // sent belongs to someone else. This comes before anything is loaded, so another person's chats are never fetched.
+      if (currentUser) {
+        const answer = await ApiService.post<{ sessionId?: string }>('/public/widget/identify', { user: currentUser }).catch(() => null);
+        identifiedKey.current = JSON.stringify(currentUser);
+        if (answer?.sessionId && answer.sessionId !== sid) {
+          await ApiService.delete('/public/widget/push-token').catch(() => {});
+          await StorageService.remove('cache:conversations:' + widgetKey).catch(() => {});
+          sid = answer.sessionId;
+          await StorageService.set('session_id', sid);
+          ApiService.init({ widgetKey, sessionId: sid });
+        }
+      }
+      await StorageService.set('session_person', person);
+      // The phone's notification token, if the app gave one in this run, belongs to the session now in use.
+      NotificationService.registerLast();
+      setSessionId(sid);
 
       // Restore this visitor's chat history — visitor:ready (the socket
       // handshake) only returns ids, never messages. Empty for a visitor who
@@ -661,8 +695,10 @@ export function KerAbieProvider({
   );
 
   // A session belongs to one person. When someone else signs in (or nobody does) after a signed-in person, nothing of the
-  // earlier one may carry over: the session id, the conversations and the connection are all started again.
-  const resetSession = useCallback(async () => {
+  // earlier one may carry over: the session id, the conversations and the connection are all started again, and the earlier
+  // session stops pushing notifications to this phone. `next` is a session the server has given the new person.
+  const resetSession = useCallback(async (next?: { sessionId: string; person: string }) => {
+    await ApiService.delete('/public/widget/push-token').catch(() => {});
     setSessionId(''); // until the new one exists, nothing is sent for the new person on the old session
     identifiedKey.current = '';
     setMessages([]);
@@ -674,11 +710,21 @@ export function KerAbieProvider({
     setChatPrefill(null);
     setUnreadCount(0);
     await Promise.all([
-      StorageService.remove('session_id'),
+      next ? StorageService.set('session_id', next.sessionId) : StorageService.remove('session_id'),
+      next ? StorageService.set('session_person', next.person) : StorageService.remove('session_person'),
       StorageService.remove('cache:conversations:' + widgetKey),
     ]).catch(() => {});
     setSessionEpoch((n) => n + 1);
   }, [widgetKey]);
+
+  // Call when the person signs out of the app. Their chats stay with them: the session is dropped, its notifications stop,
+  // and the next person, or an anonymous visitor, starts a new one.
+  const logout = useCallback(async () => {
+    appliedUserKey.current = '';
+    appliedPerson.current = '';
+    clearUser();
+    await resetSession();
+  }, [clearUser, resetSession]);
 
   // The `user` prop is followed after mount: signing in gives the person's name to the team, signing out forgets it.
   const userKey = initialUser ? JSON.stringify(initialUser) : '';
@@ -691,7 +737,7 @@ export function KerAbieProvider({
     const after = personOf(initialUser);
     appliedPerson.current = after;
     // Anonymous to signed in keeps the session (the chat so far is theirs); signed in to anyone else starts over.
-    if (before && before !== after) void resetSession();
+    if (sessionIsOthers(before, after)) void resetSession();
     if (initialUser) setUser(initialUser);
     else clearUser();
   }, [userKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -773,7 +819,7 @@ export function KerAbieProvider({
     isConnected,
     currentUser,
     setUser,
-    clearUser,
+    logout,
     updateAttribute,
     appName,
     appVersion: currentAppVersion,

@@ -335,7 +335,8 @@ export interface KerAbieContextValue {
   // User identity
   currentUser: KerUser | null;
   setUser: (user: KerUser) => void;
-  clearUser: () => void;
+  /** Call when the person signs out of the app: their chat session is dropped, its notifications stop, and the next person starts a new one. */
+  logout: () => Promise<void>;
   updateAttribute: (key: string, value: string) => void;
 
   // App identity

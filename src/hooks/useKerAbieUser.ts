@@ -5,7 +5,7 @@ export function useKerAbieUser() {
   return {
     currentUser: ctx.currentUser,
     setUser: ctx.setUser,
-    clearUser: ctx.clearUser,
+    logout: ctx.logout,
     updateAttribute: ctx.updateAttribute,
   };
 }

@@ -1,12 +1,13 @@
 {
   "name": "react-native-kerabie-helpdesk",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "Embed the Kerabie help desk into any React Native / Expo app",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "files": [
     "src",
     "calls",
+    "voice",
     "wake",
     "README.md",
     "LICENSE"
@@ -24,7 +25,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/wakeWord.test.ts test/contextMessage.test.ts test/person.test.ts"
+    "test": "node --test test/wakeWord.test.ts test/contextMessage.test.ts test/person.test.ts test/voice.test.ts"
   },
   "peerDependencies": {
     "@livekit/react-native": ">=3.1.0",
@@ -36,9 +37,13 @@
     "livekit-client": ">=2.23.0",
     "react": ">=18.0.0",
     "react-native": ">=0.72.0",
+    "@speechmatics/expo-two-way-audio": ">=0.1.2",
     "expo-speech-recognition": ">=3.0.0"
   },
   "peerDependenciesMeta": {
+    "@speechmatics/expo-two-way-audio": {
+      "optional": true
+    },
     "@livekit/react-native": {
       "optional": true
     },

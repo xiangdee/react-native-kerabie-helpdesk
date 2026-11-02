@@ -12,6 +12,8 @@ export interface KerAndroidChannel {
   description?: string;
 }
 
+let lastToken: { token: string; provider: 'expo' | 'fcm' } | null = null;
+
 const DEFAULT_CHANNELS: KerAndroidChannel[] = [
   {
     channelId: 'kerabie-messages',       // matches backend + mobile app channelId
@@ -82,9 +84,15 @@ export const NotificationService = {
   },
 
   async registerToken(token: string, provider: 'expo' | 'fcm' = 'expo'): Promise<void> {
+    lastToken = { token, provider };
     try {
       await ApiService.post('/public/widget/push-token', { token, provider });
     } catch {}
+  },
+
+  /** Gives the token the app registered earlier in this run to the session now in use (after a sign-out or a switch of person). */
+  registerLast(): void {
+    if (lastToken) void NotificationService.registerToken(lastToken.token, lastToken.provider);
   },
 
   async requestExpoPermission(): Promise<boolean> {

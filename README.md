@@ -148,7 +148,22 @@ export default function App() {
 | `defaultOpen` | `boolean` | `false` | Open the chat immediately on mount. |
 | `hideFloatingButton` | `boolean` | `false` | Hide the auto-rendered button. Use your own trigger with `useKerAbieChat().open()`. |
 
-### User identity
+### Live voice with the orb
+
+A second way to talk to the AI agent, quicker than a call. The customer's speech goes to Kerabie over the chat's own connection, the agent answers at once, and a panel at the bottom of the screen shows an orb that moves with the voices and what is being said. The app above stays visible and usable.
+
+```tsx
+import { KerAbieVoicePanel, useKerAbieVoice } from 'react-native-kerabie-helpdesk/voice'
+
+<KerAbieVoicePanel name="Kerabie Agent" />   // once, near the root, inside KerAbieProvider
+
+const voice = useKerAbieVoice()               // { available, active, activity, lines, start, stop, ... }
+if (voice.available) <Button title="Talk to Kerabie Agent" onPress={voice.start} />
+```
+
+It uses the provider's `agent` prop (the signed-in customer's token, your screens and your actions). Install `@speechmatics/expo-two-way-audio` and make one development build (not Expo Go). It counts against the plan's AI call minutes. Pass `otherCallActive` to `useKerAbieVoice` while your own call is going on.
+
+## User identity
 
 | Prop | Type | Description |
 | ---- | ---- | ----------- |
@@ -265,13 +280,13 @@ function HelpButton() {
 
 ### useKerAbieUser
 
-Manage visitor identity. Call `setUser` after login and `clearUser` after logout.
+Manage visitor identity. Call `setUser` after login and `logout` after logout.
 
 ```tsx
 const {
   currentUser,      // KerUser | null — currently identified visitor
   setUser,          // (user: KerUser) => void
-  clearUser,        // () => void — resets to anonymous session
+  logout,           // () => Promise<void> — the person signed out: drops their chat session, starts a new one
   updateAttribute,  // (key: string, value: string) => void
 } = useKerAbieUser()
 ```
@@ -280,7 +295,7 @@ const {
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `id` | `string` | Your internal user ID. |
+| `id` | `string` | Your internal user ID. **Always send it.** It is how Kerabie knows two sign-ins are the same person or two different people. |
 | `name` | `string` | Visitor name shown to agents. |
 | `email` | `string` | Visitor email. |
 | `phone` | `string` | Visitor phone number. |
@@ -291,7 +306,7 @@ const {
 **Example:**
 
 ```tsx
-const { setUser, clearUser, updateAttribute } = useKerAbieUser()
+const { setUser, logout, updateAttribute } = useKerAbieUser()
 
 // On login
 setUser({ id: 'u_123', name: 'Ada Obi', email: 'ada@example.com', role: 'customer' })
@@ -301,7 +316,7 @@ updateAttribute('plan', 'pro')
 updateAttribute('last_order', '#ORD-4521')
 
 // On logout
-clearUser()
+await logout()
 ```
 
 ---
@@ -1067,7 +1082,7 @@ openWithContext({
 When a user logs in, call `setUser` so agents see who they're talking to:
 
 ```tsx
-const { setUser, clearUser, updateAttribute } = useKerAbieUser()
+const { setUser, logout, updateAttribute } = useKerAbieUser()
 
 // On login
 setUser({
@@ -1085,9 +1100,20 @@ setUser({
 updateAttribute('cart_value', '₦12,500')
 updateAttribute('last_error', 'CheckoutScreen: undefined is not an object')
 
-// On logout — starts a fresh anonymous session
-clearUser()
+// On logout — drops this person's chat session and starts a new one
+await logout()
 ```
+
+### One person per session
+
+A chat session belongs to one person. Two things keep one person's chats from showing to the next:
+
+- **Call `logout()` when someone signs out.** The session is dropped, its push notifications stop going to this phone, and the next person (or an anonymous visitor) starts a new session. If you pass the signed-in user as the `user` prop, set it to `undefined` at the same time.
+- **Always send `id`.** The server remembers which `id` a session belongs to. If a different `id` arrives on it (for example the app was closed after a sign-out, or an older build kept the session), the server gives that person a new session and the SDK switches to it before anything is loaded. A session that belongs to someone is never handed to someone else, and an anonymous visitor who signs in keeps their chat.
+
+Your `id` is trusted as sent. A signed identity is not needed for this, but it also means someone who sends another person's `id` from their own device gets a new empty session, never that person's chats.
+
+If your app registers a push token, it is given to the new session automatically after a sign-out or a switch.
 
 ---
 

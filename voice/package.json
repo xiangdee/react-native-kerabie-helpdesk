@@ -1,0 +1,6 @@
+{
+  "name": "react-native-kerabie-helpdesk-voice",
+  "private": true,
+  "main": "../src/voice/index.ts",
+  "types": "../src/voice/index.ts"
+}
