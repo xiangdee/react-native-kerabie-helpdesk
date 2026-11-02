@@ -3,14 +3,15 @@ import { Downsampler, asBytes } from './pcm';
 import { PlaybackPacer } from './playbackPacer';
 import { initialVoice, voiceReducer, type VoiceAction, type VoiceSnapshot } from './voiceState';
 
-/** The parts of `@speechmatics/expo-two-way-audio` this uses. Loaded only when a session starts, so apps without it still load. */
-interface TwoWayAudio {
+/** The parts of `@kerabie/realtime-audio` this uses. Loaded only when a session starts, so apps without it still load. */
+interface RealtimeAudio {
   initialize(): Promise<unknown>;
   tearDown(): void;
   toggleRecording(on: boolean): boolean;
   playPCMData(pcm: Uint8Array): void;
+  clearPlayback(): void;
   requestMicrophonePermissionsAsync(): Promise<{ granted: boolean }>;
-  addExpoTwoWayAudioEventListener(event: string, handler: (e: { data: any }) => void): { remove(): void };
+  addKerabieRealtimeAudioEventListener(event: string, handler: (e: { data: any }) => void): { remove(): void };
 }
 
 type Listener = () => void;
@@ -31,7 +32,7 @@ class VoiceController {
   private levels = { input: 0, output: 0 };
   private levelListeners = new Set<Listener>();
 
-  private audio: TwoWayAudio | null = null;
+  private audio: RealtimeAudio | null = null;
   private subscriptions: { remove(): void }[] = [];
   private offSocket: (() => void)[] = [];
   private downsampler = new Downsampler();
@@ -64,10 +65,10 @@ class VoiceController {
     this.running = true;
     this.dispatch({ type: 'connecting' });
 
-    let audio: TwoWayAudio;
+    let audio: RealtimeAudio;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      audio = require('@speechmatics/expo-two-way-audio') as TwoWayAudio;
+      audio = require('@kerabie/realtime-audio') as RealtimeAudio;
     } catch {
       return this.fail('unavailable');
     }
@@ -82,6 +83,7 @@ class VoiceController {
       socketService.on('voice_audio', (d: unknown) => this.onSpeech(d)),
       socketService.on('voice_interrupted', () => {
         this.pacer?.clear();
+        this.audio?.clearPlayback();
         this.dispatch({ type: 'interrupted' });
       }),
       socketService.on('voice_ended', (d: { reason?: string }) => this.finish(d?.reason ?? 'closed')),
@@ -106,11 +108,11 @@ class VoiceController {
     this.pace = setInterval(() => this.pacer?.pump(), PACE_MS);
     this.subscriptions = [
       // Echo cancelled by the module, so the AI does not hear itself.
-      audio.addExpoTwoWayAudioEventListener('onMicrophoneData', (e) => {
+      audio.addKerabieRealtimeAudioEventListener('onMicrophoneData', (e) => {
         if (!this.snapshot.muted) socketService.voiceAudio(e.data);
       }),
-      audio.addExpoTwoWayAudioEventListener('onInputVolumeLevelData', (e) => this.setLevel('input', e.data)),
-      audio.addExpoTwoWayAudioEventListener('onOutputVolumeLevelData', (e) => this.setLevel('output', e.data)),
+      audio.addKerabieRealtimeAudioEventListener('onInputVolumeLevelData', (e) => this.setLevel('input', e.data)),
+      audio.addKerabieRealtimeAudioEventListener('onOutputVolumeLevelData', (e) => this.setLevel('output', e.data)),
     ];
     audio.toggleRecording(true);
     this.dispatch({ type: 'ready' });

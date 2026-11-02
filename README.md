@@ -161,7 +161,7 @@ const voice = useKerAbieVoice()               // { available, active, activity, 
 if (voice.available) <Button title="Talk to Kerabie Agent" onPress={voice.start} />
 ```
 
-It uses the provider's `agent` prop (the signed-in customer's token, your screens and your actions). Install `@speechmatics/expo-two-way-audio` and make one development build (not Expo Go). It counts against the plan's AI call minutes. Pass `otherCallActive` to `useKerAbieVoice` while your own call is going on.
+It uses the provider's `agent` prop (the signed-in customer's token, your screens and your actions). Install `@kerabie/realtime-audio` and make one development build (not Expo Go). It counts against the plan's AI call minutes. Pass `otherCallActive` to `useKerAbieVoice` while your own call is going on.
 
 ## User identity
 

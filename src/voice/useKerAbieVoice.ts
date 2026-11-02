@@ -4,7 +4,7 @@ import { voiceController } from './voiceController';
 
 /**
  * Talk to the AI by voice, live, over the chat's own connection. Needs a development build with
- * `@speechmatics/expo-two-way-audio` (it does the microphone with echo cancelling, and plays the speech). Show it with
+ * `@kerabie/realtime-audio` (it does the microphone with echo cancelling, and plays the speech). Show it with
  * `<KerAbieVoicePanel />` once near the root of your app, and start it from your own button with `start`.
  *
  * `available` is true when the dashboard has calls on and the plan has AI minutes. Pass `otherCallActive` (true while your
