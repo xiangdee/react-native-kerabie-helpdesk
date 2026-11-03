@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useKerAbieContext } from '../provider/KerAbieContext';
-import { usePalette } from '../theme/palette';
+import { contrastText, readableAccent, usePalette } from '../theme/palette';
 import type { VoiceActivity } from './voiceState';
 import { useVoiceLevels } from './useKerAbieVoice';
 
@@ -40,7 +40,11 @@ export function KerAbieOrb({ activity, size = 84 }: Props) {
     return () => loop.stop();
   }, [activity, breathe]);
 
-  const color = activity === 'speaking' ? palette.accent : palette.primary;
+  // The brand color as a shape on the panel: a light brand color (lime, yellow) would nearly vanish on white, so it is
+  // darkened (or lightened on a dark panel) just until it stands out (3:1, the level for graphics), by luminance, the way
+  // the chat bubbles pick their text color. The bright centre then follows the orb's own luminance.
+  const color = readableAccent(activity === 'speaking' ? palette.accent : palette.primary, palette.background, 3);
+  const centre = contrastText(color);
   const coreScale = Animated.add(1, Animated.add(Animated.multiply(swell, 0.28), Animated.multiply(breathe, activity === 'thinking' ? 0.1 : 0.03)));
   const glowScale = Animated.add(1.15, Animated.add(Animated.multiply(swell, 0.6), Animated.multiply(breathe, activity === 'thinking' ? 0.2 : 0.06)));
 
@@ -48,7 +52,7 @@ export function KerAbieOrb({ activity, size = 84 }: Props) {
     <View style={{ width: size * 1.7, height: size * 1.7, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="image" accessibilityLabel={activity}>
       <Animated.View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: 0.22, transform: [{ scale: glowScale }] }]} />
       <Animated.View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: color, transform: [{ scale: coreScale }] }]} />
-      <View style={[styles.circle, { width: size * 0.42, height: size * 0.42, borderRadius: size * 0.21, backgroundColor: '#ffffff', opacity: 0.35 }]} />
+      <View style={[styles.circle, { width: size * 0.42, height: size * 0.42, borderRadius: size * 0.21, backgroundColor: centre, opacity: 0.35 }]} />
     </View>
   );
 }
