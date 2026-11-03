@@ -860,6 +860,9 @@ export function KerAbieProvider({
   return (
     <KerAbieContext.Provider value={ctx}>
       {children}
+      {/* The screens the AI shows (a list to tap, a confirmation, an address box) are drawn by the chat window while it is open,
+          and here when it is not, so they also show during live voice. Never both: two sheets cannot be on screen together. */}
+      {!(isOpen && (openMode === 'modal' || !hideFloatingButton)) && agentUi.element}
       {campaigns.campaign && (
         <CampaignBanner
           campaign={campaigns.campaign}
