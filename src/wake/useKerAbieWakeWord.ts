@@ -44,6 +44,8 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
   const names = useRef(wakeNames(name, aliases));
   names.current = wakeNames(name, aliases);
   const listening = useRef(false);
+  /** We want to be listening. Cleared only by our own stop, so an engine that ends or errors by itself is started again. */
+  const wanted = useRef(false);
   const failures = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -55,6 +57,7 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
   const stop = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
+    wanted.current = false;
     if (listening.current) {
       listening.current = false;
       try { ExpoSpeechRecognitionModule.abort(); } catch { /* already stopped */ }
@@ -64,6 +67,7 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
   const begin = useCallback(() => {
     if (listening.current) return;
     listening.current = true;
+    wanted.current = true;
     try {
       ExpoSpeechRecognitionModule.start({
         lang: language,
@@ -117,20 +121,26 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
     onWakeRef.current();
   });
 
-  // The engine ends a session by itself after a while; listen again unless it keeps failing.
-  useSpeechRecognitionEvent('end', () => {
-    if (!listening.current) return;
+  // The engine ends a session by itself after a while, and reports silence as an error: listen again in both cases, unless
+  // it keeps failing. (Starting again only on 'end' was not enough: the error cleared the flag 'end' looked at, so after the
+  // first quiet moment it never listened again.)
+  const again = useCallback(() => {
     listening.current = false;
+    if (!wanted.current) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (failures.current < MAX_FAILURES) begin(); }, RESTART_DELAY_MS);
-  });
+    timer.current = setTimeout(() => { if (wanted.current && failures.current < MAX_FAILURES) begin(); }, RESTART_DELAY_MS);
+  }, [begin]);
+
+  useSpeechRecognitionEvent('end', again);
 
   useSpeechRecognitionEvent('error', (event) => {
-    listening.current = false;
     // Hearing nothing for a while is normal, not a failure.
-    if (event.error === 'no-speech' || event.error === 'aborted') return;
-    failures.current += 1;
-    if (event.error === 'not-allowed') setState('denied');
+    if (event.error !== 'no-speech' && event.error !== 'aborted') failures.current += 1;
+    if (event.error === 'not-allowed') {
+      wanted.current = false;
+      setState('denied');
+    }
+    again();
   });
 
   return { state };

@@ -143,7 +143,7 @@ export function KerAbieVoicePanel({ children, name = 'Kerabie Agent', bottomInse
             </View>
 
             {expanded ? (
-              <ScrollView style={styles.transcript} contentContainerStyle={{ gap: 6 }}>
+              <ScrollView style={styles.transcriptScroll} contentContainerStyle={{ gap: 6 }}>
                 {voice.lines.map((l) => (
                   <Text key={l.id} style={{ color: l.role === 'user' ? palette.textMuted : palette.text, fontFamily: font, fontSize: 15, textAlign: l.role === 'user' ? 'right' : 'left' }}>
                     {l.text.trim()}
@@ -206,6 +206,8 @@ const styles = StyleSheet.create({
   headerButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   orb: { alignItems: 'center', justifyContent: 'center', marginTop: -4, marginBottom: -8 },
   transcript: { flex: 1, minHeight: 0, justifyContent: 'center', gap: 4 },
+  // A ScrollView takes only size and position here: how its children are laid out goes in contentContainerStyle.
+  transcriptScroll: { flex: 1, minHeight: 0 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   message: { fontSize: 15, textAlign: 'center' },
