@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Downsampler, asBytes, pcmMs } from '../src/voice/pcm.ts';
 import { PlaybackPacer } from '../src/voice/playbackPacer.ts';
+import { WORKING_WORDS, workingWord } from '../src/voice/workingWords.ts';
 import { initialVoice, voiceReducer, MAX_LINES, type VoiceAction, type VoiceSnapshot } from '../src/voice/voiceState.ts';
 
 const pcm = (...samples: number[]) => {
@@ -188,4 +189,13 @@ test('dismissing a message goes back to idle and clears it', () => {
   assert.equal(s.error, null);
   assert.equal(s.phase, 'idle');
   assert.equal(run([{ type: 'connecting' }, { type: 'ready' }, { type: 'ended', reason: 'limit' }, { type: 'dismiss' }]).endedReason, null);
+});
+
+test('working words: one word per tick, cycling through all of them, from any seed', () => {
+  const seen = new Set(Array.from({ length: WORKING_WORDS.length }, (_, i) => workingWord(i)));
+  assert.equal(seen.size, WORKING_WORDS.length);
+  assert.equal(workingWord(WORKING_WORDS.length), workingWord(0));
+  assert.equal(workingWord(3, 5), workingWord(8));
+  assert.equal(workingWord(-1), WORKING_WORDS[WORKING_WORDS.length - 1]);
+  assert.ok(WORKING_WORDS.every((w) => /^[A-Z][a-z]+$/.test(w)));
 });

@@ -5,8 +5,11 @@ import { usePalette } from '../theme/palette';
 import { KerAbieOrb } from './KerAbieOrb';
 import { useKerAbieVoice } from './useKerAbieVoice';
 import type { VoiceActivity, VoiceErrorCode } from './voiceState';
+import { workingWord } from './workingWords';
 
 interface Props {
+  /** The app. It is laid out above the panel, so whatever the AI shows or opens in the app is never covered by it. */
+  children?: React.ReactNode;
   /** What the AI is called on screen. */
   name?: string;
   /** Space to keep clear at the bottom, for a tab bar. */
@@ -34,7 +37,7 @@ const ENDED: Record<string, string> = {
  * sees the app change as the AI opens screens and fills things in. It can be pulled up to read the whole conversation, or
  * shrunk to a small orb that keeps listening. Render it once near the root of the app, inside `KerAbieProvider`.
  */
-export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: Props) {
+export function KerAbieVoicePanel({ children, name = 'Kerabie Agent', bottomInset = 0 }: Props) {
   const { config } = useKerAbieContext();
   const palette = usePalette(config.theme);
   const { theme } = config;
@@ -42,6 +45,15 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
   const { height } = useWindowDimensions();
   const [expanded, setExpanded] = useState(false);
   const [small, setSmall] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [seed] = useState(() => Math.floor(Math.random() * 1000));
+
+  // While the AI works, the status changes word by word (Vibing, Wheezing, ...) so a wait never looks like a freeze.
+  useEffect(() => {
+    if (voice.activity !== 'thinking') return;
+    const t = setInterval(() => setTick((n) => n + 1), 1400);
+    return () => clearInterval(t);
+  }, [voice.activity]);
 
   const message = voice.error ? ERRORS[voice.error](name) : voice.endedReason && ENDED[voice.endedReason] ? ENDED[voice.endedReason] : null;
 
@@ -59,13 +71,15 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
     }
   }, [voice.active]);
 
-  if (!voice.active && !message) return null;
+  if (!voice.active && !message) return <View style={styles.host}>{children}</View>;
 
   const font = theme.fontFamily;
 
   if (small && voice.active) {
     return (
-      <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
+      <View style={styles.host}>
+        {children}
+        <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`Open ${name}`}
@@ -75,6 +89,7 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
         >
           <KerAbieOrb activity={voice.activity} size={30} />
         </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -83,7 +98,8 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
   const lastAgent = [...voice.lines].reverse().find((l) => l.role === 'agent');
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
+    <View style={styles.host}>
+      <View style={styles.app}>{children}</View>
       <View
         style={[
           styles.panel,
@@ -100,7 +116,7 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
             {name}
           </Text>
           <Text style={[styles.status, { color: palette.textMuted, fontFamily: font }]}>
-            {message ? '' : voice.phase === 'connecting' ? 'Connecting' : voice.muted ? 'Muted' : STATUS[voice.activity]}
+            {message ? '' : voice.phase === 'connecting' ? 'Connecting' : voice.muted ? 'Muted' : voice.activity === 'thinking' ? `${workingWord(tick, seed)}… please wait` : STATUS[voice.activity]}
           </Text>
           {voice.active && (
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Make smaller" onPress={() => setSmall(true)} hitSlop={10} style={styles.headerButton}>
@@ -164,7 +180,10 @@ export function KerAbieVoicePanel({ name = 'Kerabie Agent', bottomInset = 0 }: P
 }
 
 const styles = StyleSheet.create({
-  // The overlay itself ignores touches (`box-none`), so only the panel catches them and the app above stays usable.
+  // The app takes the space above the panel, so the panel never covers what the AI shows in it.
+  host: { flex: 1 },
+  app: { flex: 1 },
+  // Only the small floating orb is drawn over the app; the overlay ignores touches, so the app stays usable.
   overlay: { justifyContent: 'flex-end' },
   panel: {
     borderTopLeftRadius: 24,

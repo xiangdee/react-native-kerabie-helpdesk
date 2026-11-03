@@ -155,7 +155,9 @@ A second way to talk to the AI agent, quicker than a call. The customer's speech
 ```tsx
 import { KerAbieVoicePanel, useKerAbieVoice } from 'react-native-kerabie-helpdesk/voice'
 
-<KerAbieVoicePanel name="Kerabie Agent" />   // once, near the root, inside KerAbieProvider
+<KerAbieVoicePanel name="Kerabie Agent">      // once, inside KerAbieProvider: wrap your app (navigation and all)
+  <YourNavigator />                            // the app shrinks above the panel, so nothing the AI shows is covered
+</KerAbieVoicePanel>
 
 const voice = useKerAbieVoice()               // { available, active, activity, lines, start, stop, ... }
 if (voice.available) <Button title="Talk to Kerabie Agent" onPress={voice.start} />
