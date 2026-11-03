@@ -71,14 +71,21 @@ export function KerAbieVoicePanel({ children, name = 'Kerabie Agent', bottomInse
     }
   }, [voice.active]);
 
-  if (!voice.active && !message) return <View style={styles.host}>{children}</View>;
+  // The app is always at the same place in the tree (host > app), whatever the panel is doing. If it moved, React would
+  // rebuild the whole app when voice starts, and the customer would be back on the loading screen.
+  const frame = (extra: React.ReactNode) => (
+    <View style={styles.host}>
+      <View style={styles.app}>{children}</View>
+      {extra}
+    </View>
+  );
+
+  if (!voice.active && !message) return frame(null);
 
   const font = theme.fontFamily;
 
   if (small && voice.active) {
-    return (
-      <View style={styles.host}>
-        {children}
+    return frame(
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
         <TouchableOpacity
           accessibilityRole="button"
@@ -89,17 +96,14 @@ export function KerAbieVoicePanel({ children, name = 'Kerabie Agent', bottomInse
         >
           <KerAbieOrb activity={voice.activity} size={30} />
         </TouchableOpacity>
-        </View>
-      </View>
+        </View>,
     );
   }
 
   const lastUser = [...voice.lines].reverse().find((l) => l.role === 'user');
   const lastAgent = [...voice.lines].reverse().find((l) => l.role === 'agent');
 
-  return (
-    <View style={styles.host}>
-      <View style={styles.app}>{children}</View>
+  return frame(
       <View
         style={[
           styles.panel,
@@ -174,8 +178,7 @@ export function KerAbieVoicePanel({ children, name = 'Kerabie Agent', bottomInse
             </View>
           </>
         )}
-      </View>
-    </View>
+      </View>,
   );
 }
 
