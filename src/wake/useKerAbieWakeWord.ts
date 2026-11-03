@@ -77,7 +77,8 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
         // Helps the engine hear the name as a word it should expect.
         contextualStrings: greetingHints(name),
       });
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.log('[Kerabie wake] could not start:', String(e));
       listening.current = false;
       failures.current += 1;
     }
@@ -130,12 +131,27 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
     listening.current = false;
     if (!wanted.current) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (wanted.current && failures.current < MAX_FAILURES) begin(); }, RESTART_DELAY_MS);
+    timer.current = setTimeout(() => {
+      if (!wanted.current) return;
+      if (failures.current >= MAX_FAILURES) {
+        if (__DEV__) console.log('[Kerabie wake] gave up after', failures.current, 'failures in a row');
+        return;
+      }
+      begin();
+    }, RESTART_DELAY_MS);
   }, [begin]);
 
-  useSpeechRecognitionEvent('end', again);
+  useSpeechRecognitionEvent('start', () => {
+    if (__DEV__) console.log('[Kerabie wake] the phone started listening');
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    if (__DEV__) console.log('[Kerabie wake] the phone stopped listening; starting again:', wanted.current);
+    again();
+  });
 
   useSpeechRecognitionEvent('error', (event) => {
+    if (__DEV__) console.log('[Kerabie wake] error:', event.error, event.message ?? '');
     // Hearing nothing for a while is normal, not a failure.
     if (event.error !== 'no-speech' && event.error !== 'aborted') failures.current += 1;
     if (event.error === 'not-allowed') {
