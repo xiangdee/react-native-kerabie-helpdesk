@@ -114,6 +114,8 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
 
   useSpeechRecognitionEvent('result', (event) => {
     const heard = event.results?.[0]?.transcript;
+    // In development, show what the phone heard, so a name it keeps mishearing can be added to `aliases`.
+    if (__DEV__ && heard) console.log('[Kerabie wake] heard:', JSON.stringify(heard), heardWake(heard, names.current) ? '-> wake' : '');
     if (!heard || !heardWake(heard, names.current)) return;
     // Stop first: the call that follows needs the microphone.
     stop();
