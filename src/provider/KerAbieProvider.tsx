@@ -189,6 +189,7 @@ export function KerAbieProvider({
   const [remoteChatSettings, setRemoteChatSettings] = useState<Partial<KerChatSettings>>({});
   const [ticketsEnabled, setTicketsEnabled] = useState(false);
   const [callsEnabled, setCallsEnabled] = useState(false);
+  const [aiVoiceEnabled, setAiVoiceEnabled] = useState(false);
   const [videoCallsEnabled, setVideoCallsEnabled] = useState(false);
   // The org's settings have arrived; the launcher is not drawn before then, so nobody sees defaults swap for the org's look.
   const [configReady, setConfigReady] = useState(false);
@@ -300,6 +301,7 @@ export function KerAbieProvider({
     });
     if (typeof s.ticketsEnabled === 'boolean') setTicketsEnabled(s.ticketsEnabled);
     if (typeof s.callsEnabled === 'boolean') setCallsEnabled(s.callsEnabled);
+    if (typeof s.aiVoiceEnabled === 'boolean') setAiVoiceEnabled(s.aiVoiceEnabled);
     if (typeof s.videoCallsEnabled === 'boolean') setVideoCallsEnabled(s.videoCallsEnabled);
     setConfigReady(true);
   };
@@ -845,6 +847,7 @@ export function KerAbieProvider({
       theme,
       ticketsEnabled,
       callsEnabled,
+      aiVoiceEnabled,
       videoCallsEnabled,
       customerEnrichmentEnabled: mergedChatSettings.customerEnrichmentEnabled === true,
       customerEnrichmentForm: mergedChatSettings.customerEnrichmentForm ?? null,

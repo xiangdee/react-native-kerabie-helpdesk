@@ -370,6 +370,8 @@ export interface KerAbieContextValue {
     ticketsEnabled: boolean;
     /** From /public/widget/init — the dashboard has calls on and the plan still has minutes. Used by the optional calls entry point. */
     callsEnabled: boolean;
+    /** From /public/widget/init — the AI voice agent is on in the dashboard and the plan still has AI minutes. Gates the live voice orb. */
+    aiVoiceEnabled: boolean;
     videoCallsEnabled: boolean;
     /** The pre-chat form the org set up (Messages > Pre-chat form), asked before a chat and before a call. */
     customerEnrichmentEnabled: boolean;

@@ -7,7 +7,7 @@ import { voiceController } from './voiceController';
  * `@kerabie/realtime-audio` (it does the microphone with echo cancelling, and plays the speech). Show it with
  * `<KerAbieVoicePanel />` once near the root of your app, and start it from your own button with `start`.
  *
- * `available` is true when the dashboard has calls on and the plan has AI minutes. Pass `otherCallActive` (true while your
+ * `available` is true when the AI voice agent is on in the dashboard and the plan has AI minutes left. Pass `otherCallActive` (true while your
  * own call is going on) to keep it from starting, since two things cannot share the microphone.
  */
 export function useKerAbieVoice(options?: { otherCallActive?: boolean }) {
@@ -20,7 +20,7 @@ export function useKerAbieVoice(options?: { otherCallActive?: boolean }) {
   }, [blocked]);
 
   return {
-    available: config.callsEnabled,
+    available: config.aiVoiceEnabled,
     blocked,
     /** A session is starting or going on. */
     active: state.phase !== 'idle',
