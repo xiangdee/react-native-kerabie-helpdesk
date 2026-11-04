@@ -46,7 +46,7 @@ export function useAgentUi(custom: AgentUiHandlers | undefined) {
   );
 
   const element = <AgentUiModal request={request} onDone={finish} />;
-  return { handlers, element, names: Object.keys(handlers) as AgentUiToolName[] };
+  return { handlers, element, dismiss: () => finish('none'), names: Object.keys(handlers) as AgentUiToolName[] };
 }
 
 function AgentUiModal({ request, onDone }: { request: Request | null; onDone: (answer: string) => void }) {

@@ -105,6 +105,8 @@ export function KerAbieProvider({
   agentRef.current = agent;
   const agentHandlersRef = useRef(agentUi.handlers);
   agentHandlersRef.current = agentUi.handlers;
+  const dismissAgentUiRef = useRef(agentUi.dismiss);
+  dismissAgentUiRef.current = agentUi.dismiss;
   const hasAgent = !!agent;
 
   useEffect(() => {
@@ -120,6 +122,8 @@ export function KerAbieProvider({
     });
     const off = socketService.on('agent_request', async (req: { requestId: string; kind: 'ui' | 'action'; name: string; args: Record<string, any> }) => {
       try {
+        // The agent has moved on to doing something: a list or question the customer answered by voice is no longer wanted.
+        if (req.kind === 'action') dismissAgentUiRef.current();
         const run = req.kind === 'ui'
           ? (agentHandlersRef.current as Record<string, ((p: unknown) => Promise<unknown>) | undefined>)[req.name]
           : agentRef.current?.actions?.[req.name]?.run;
