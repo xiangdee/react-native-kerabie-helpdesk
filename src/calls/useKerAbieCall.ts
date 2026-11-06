@@ -15,6 +15,8 @@ export type KerCallPhase =
   | 'waiting'
   /** Free agents are being rung. */
   | 'ringing'
+  /** A person is calling this customer: they answer or decline. */
+  | 'incoming'
   /** Answered by a person or the AI: audio (and video) is flowing. */
   | 'connected'
   /** Over, or could not start. `endReason` or `error` says why. */
@@ -46,7 +48,8 @@ function ensureLiveKit() {
 
 function fromJoin(join: CallJoin): KerCallState {
   return {
-    phase: join.status === 'ACTIVE' ? 'connected' : join.status === 'RINGING' ? 'ringing' : 'waiting',
+    phase: join.status === 'ACTIVE' ? 'connected' : join.incoming ? 'incoming' : join.status === 'RINGING' ? 'ringing' : 'waiting',
+    agentName: join.agentName,
     callId: join.callId,
     video: join.video,
     handler: join.handler,
@@ -94,12 +97,16 @@ export function useKerAbieCall(options?: {
   useEffect(() => {
     const forThisCall = (d: { callId?: number }) => callIdRef.current === null || d.callId === callIdRef.current;
     const offs = [
+      // A person is calling: shown as a ring to answer or decline. Not while this customer is already in a call.
+      socketService.on('call_incoming', (d: any) =>
+        setState((s) => (s.phase === 'idle' || s.phase === 'ended' ? { ...IDLE, phase: 'incoming', callId: d.callId, video: !!d.video, handler: 'HUMAN', agentName: d.agentName } : s))),
       socketService.on('call_ringing', (d: any) => forThisCall(d) && setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'ringing' }))),
       socketService.on('call_queued', (d: any) => forThisCall(d) && setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'waiting', queuePosition: d.position }))),
       socketService.on('call_accepted', (d: any) =>
         forThisCall(d) && setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'connected', handler: d.handler ?? s.handler, agentName: d.agentName }))),
       socketService.on('call_ended', (d: any) =>
-        forThisCall(d) && setState((s) => (s.phase === 'idle' ? s : { ...s, phase: 'ended', endReason: d.reason, livekit: null }))),
+        // A ring nobody answered ends quietly: nothing to report.
+        forThisCall(d) && setState((s) => (s.phase === 'idle' ? s : s.phase === 'incoming' ? IDLE : { ...s, phase: 'ended', endReason: d.reason, livekit: null }))),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -157,6 +164,25 @@ export function useKerAbieCall(options?: {
     if (id !== null) await CallService.end(id).catch(() => {});
   }, []);
 
+  /** Picks up a call a person started. */
+  const answer = useCallback(async () => {
+    const id = callIdRef.current;
+    if (id === null) return;
+    try {
+      ensureLiveKit();
+      setState(fromJoin(await CallService.answer(id)));
+    } catch (e: any) {
+      setState({ ...IDLE, phase: 'ended', error: e?.message || 'Could not answer the call.' });
+    }
+  }, []);
+
+  /** Says no to a call a person started. */
+  const decline = useCallback(async () => {
+    const id = callIdRef.current;
+    setState(IDLE);
+    if (id !== null) await CallService.end(id).catch(() => {});
+  }, []);
+
   /** Ends the call, or cancels it before it is answered. */
   const hangUp = useCallback(() => endCall(), [endCall]);
 
@@ -168,7 +194,7 @@ export function useKerAbieCall(options?: {
   /** Closes the call screen once the call is over. */
   const dismiss = useCallback(() => setState(IDLE), []);
 
-  return { available, videoAvailable, blocked, state, start, submitDetails, hangUp, dismiss };
+  return { available, videoAvailable, blocked, state, start, submitDetails, answer, decline, hangUp, dismiss };
 }
 
 export type KerAbieCall = ReturnType<typeof useKerAbieCall>;

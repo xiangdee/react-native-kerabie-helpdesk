@@ -102,6 +102,7 @@ class KerSocketService {
     // normal 'chat:message' carries the persisted final message with a
     // matching streamId so the provider can swap the streaming bubble for it.
     // Where a call stands, for the optional calls entry point (react-native-kerabie-helpdesk/calls).
+    this.socket.on('call:incoming', (data: any) => this.emit('call_incoming', data));
     this.socket.on('call:ringing', (data: any) => this.emit('call_ringing', data));
     this.socket.on('call:queued', (data: any) => this.emit('call_queued', data));
     this.socket.on('call:accepted', (data: any) => this.emit('call_accepted', data));

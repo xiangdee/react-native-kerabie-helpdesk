@@ -135,6 +135,23 @@ export function KerAbieCallModal({ call, inRoom, label }: { call: KerAbieCall; /
         </View>
       </>
     );
+  } else if (state.phase === 'incoming') {
+    const who = state.agentName || 'Support';
+    body = (
+      <>
+        <View style={styles.center}>
+          <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+            <Text style={[styles.avatarText, { color: palette.onPrimary, fontFamily: theme.fontFamily }]}>{who.trim().charAt(0).toUpperCase()}</Text>
+          </View>
+          {text(who, true)}
+          {text(state.video ? 'is video calling you' : 'is calling you')}
+        </View>
+        <View style={styles.controls}>
+          <RoundButton label="Decline" onPress={call.decline} bg={DANGER} fg="#ffffff" palette={palette} theme={theme} />
+          <RoundButton label="Answer" onPress={call.answer} bg={palette.primary} fg={palette.onPrimary} palette={palette} theme={theme} />
+        </View>
+      </>
+    );
   } else if (state.phase === 'ended') {
     body = (
       <>
@@ -166,7 +183,7 @@ export function KerAbieCallModal({ call, inRoom, label }: { call: KerAbieCall; /
   }
 
   return (
-    <Modal visible animationType="slide" onRequestClose={hangUp} statusBarTranslucent>
+    <Modal visible animationType="slide" onRequestClose={state.phase === 'incoming' ? call.decline : hangUp} statusBarTranslucent>
       <View style={[styles.root, { backgroundColor: palette.background }]}>{body}</View>
     </Modal>
   );

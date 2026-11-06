@@ -6,6 +6,10 @@ export interface CallJoin {
   status: 'QUEUED' | 'RINGING' | 'ACTIVE' | string;
   video: boolean;
   handler: 'HUMAN' | 'AI' | null;
+  /** True while a person is ringing this customer: they answer or decline before joining the room. */
+  incoming?: boolean;
+  /** Who is calling, when a person rang the customer. */
+  agentName?: string;
   /** Place in the queue (1 = next), only while the call is waiting. */
   queuePosition?: number;
   livekit: { url: string; token: string };
@@ -29,6 +33,11 @@ export const CallService = {
   async current(): Promise<CallJoin | null> {
     const res = await ApiService.get<{ call: CallJoin | null }>('/public/widget/calls/current');
     return res.call;
+  },
+
+  /** Picks up a call a person started. */
+  answer(callId: number): Promise<CallJoin> {
+    return ApiService.post<CallJoin>(`/public/widget/calls/${callId}/answer`, {});
   },
 
   /** Hangs up, or cancels a call nobody has answered yet. */
