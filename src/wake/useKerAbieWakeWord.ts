@@ -38,7 +38,8 @@ const MAX_FAILURES = 5;
  */
 export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, language = 'en-US', onDeviceOnly = true }: KerAbieWakeWordOptions) {
   const [state, setState] = useState<KerAbieWakeWordState>('off');
-  const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  // The app's state can be unknown for a moment at start (null on some Android builds): only a known background counts as not being on screen.
+  const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
   const onWakeRef = useRef(onWake);
   onWakeRef.current = onWake;
   const names = useRef(wakeNames(name, aliases));
@@ -51,6 +52,7 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setForeground(s === 'active'));
+    setForeground(AppState.currentState === 'active');
     return () => sub.remove();
   }, []);
 
@@ -87,6 +89,7 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
   // Decide whether to listen: enabled, in the foreground, permitted and supported.
   useEffect(() => {
     if (!enabled || !foreground) {
+      if (__DEV__) console.log('[Kerabie wake] not listening:', { enabled, foreground });
       stop();
       setState('off');
       return;
