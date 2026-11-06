@@ -78,6 +78,8 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
         requiresOnDeviceRecognition: onDeviceOnly,
         // Helps the engine hear the name as a word it should expect.
         contextualStrings: greetingHints(name),
+        // In development: loudness events show whether the microphone is delivering sound at all.
+        ...(__DEV__ ? { volumeChangeEventOptions: { enabled: true, intervalMillis: 250 } } : {}),
       });
     } catch (e) {
       if (__DEV__) console.log('[Kerabie wake] could not start:', String(e));
@@ -143,6 +145,17 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
       begin();
     }, RESTART_DELAY_MS);
   }, [begin]);
+
+  // Development only: where the chain stops when nothing is heard (microphone opened, sound arriving, speech detected).
+  const volumeTicks = useRef(0);
+  useSpeechRecognitionEvent('audiostart', () => { if (__DEV__) console.log('[Kerabie wake] microphone opened'); });
+  useSpeechRecognitionEvent('audioend', () => { if (__DEV__) console.log('[Kerabie wake] microphone closed'); });
+  useSpeechRecognitionEvent('speechstart', () => { if (__DEV__) console.log('[Kerabie wake] speech detected'); });
+  useSpeechRecognitionEvent('nomatch', () => { if (__DEV__) console.log('[Kerabie wake] speech heard but not understood'); });
+  useSpeechRecognitionEvent('volumechange', (e) => {
+    // Roughly every two seconds: -2 is silence, up to 10 for loud.
+    if (__DEV__ && volumeTicks.current++ % 8 === 0) console.log('[Kerabie wake] sound level', e.value.toFixed(1));
+  });
 
   useSpeechRecognitionEvent('start', () => {
     if (__DEV__) console.log('[Kerabie wake] the phone started listening');
