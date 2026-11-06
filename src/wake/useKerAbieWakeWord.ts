@@ -70,6 +70,7 @@ export function useKerAbieWakeWord({ name, onWake, enabled = true, aliases, lang
     if (listening.current) return;
     listening.current = true;
     wanted.current = true;
+    if (__DEV__) console.log('[Kerabie wake] asking the phone to listen (SDK source, with audio logs)');
     try {
       ExpoSpeechRecognitionModule.start({
         lang: language,
